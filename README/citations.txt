@@ -1,0 +1,14 @@
+Pre-Alignment analysis:
+
+fastq-join - part of ea-utils package
+	Erik Aronesty (2011). ea-utils : "Command-line tools for processing biological sequencing data"; http://code.google.com/p/ea-utils
+
+fastQC 
+	Simon Andrews (2012). fastQC v.0.10.1 : "A quality control tool for high throughput sequence data"; http://www.bioinformatics.babraham.ac.uk/projects/fastqc/
+
+
+
+Post-Alignment analysis:
+
+Circos
+	 Krzywinski, M. et al. Circos: an Information Aesthetic for Comparative Genomics. Genome Res (2009) 19:1639-1645

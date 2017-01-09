@@ -1,0 +1,9 @@
+length_threshold:0
+include_NoDgene:y
+include_NoResults:n
+include_Unproductive:n
+include_Unknown:n
+separate_Identicals:n
+identical_Cutoff:0
+####
+####

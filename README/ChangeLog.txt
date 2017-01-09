@@ -1,0 +1,39 @@
+IgSeq:
+
+2013.05.08
+	- Added new output for compareLineage  XXX_GROUPED_LINEAGE_COUNTS.txt
+		Includes Grouped Lineage ID, V-gene, Total number of lineages, Total number of sequences, Number of lineages per population and number of sequences per population
+
+2013.04.16
+	- Included the config folder into the archive output to record all settings during the run.
+
+2013.04.05
+	- Adjusted output of Summary information.
+
+	- Included a small script to clear output folders between runs.  Does not clear the initial data folders or archive
+
+2013.03.29
+	- Added output of numbers of lineages with corresponding numbers of connections
+
+	- Names of populations prepended to comparison output (may be removed in future version)
+
+	- Algorithmic changes for lineage:
+		- Previously used graph based methods for finding connections between sequences, this could result in clumps of distinctly different sequences being connected by a few sequences between them.
+		- Switched to a more agglomerative clustering based approach which helps prevent this as well as increases memory efficiency and decreases computation time.  
+2014.01.02
+	- Samples were previously clustered individually resulting in lineages being connected to multiple different lineages across cell populations.  To eliminate this occurance, samples are now clusted together in one step. For the most part there is no large change on output in terms of clonal distributions, connections between populations though can be altered anywhere from slightly (common) to drastically (rare).  With this most of the output files have changed.
+
+
+
+
+
+
+FastqAnalysis:
+
+2013.04.16
+	- Adjusted SubSampling script to output exact numbers of sequences into files.  Previously used an approximation based method.
+	- Removal of depricated percent setting in SubSampling script/config.
+	- Included the config folder into the archive output to record all settings during the run.
+
+2013.04.05
+	- Included a small script to clear output folders between runs.  Does not clear the initial data folders or archive

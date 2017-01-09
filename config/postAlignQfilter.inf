@@ -1,0 +1,16 @@
+run:n
+generatePlots:y
+%r1
+start:1
+stop:165
+q>=:30
+%r1
+%r2
+start:300
+stop:Inf
+q>=:35
+%r2
+#f1
+M10SIgE
+IgE_ACTGCATAACTC-TGTTGCGTTTCT_L001_join
+#

@@ -1,0 +1,394 @@
+#!/usr/bin/env perl
+
+###################################################################################################
+#
+# fastqAnalysis
+#   - wrapper script for analyzing fastq files (part of IgSeq pipeline)
+#
+#
+# by Christopher Fucile
+########################
+#
+# Division of Allergy, Immunology and Rheumatology
+# University of Rochester Medical Center
+# Copyright (c) 2013, All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+#
+# USAGE:
+#
+#    perl fastqAnalysis
+#
+###################################################################################################
+
+use strict;
+use warnings;
+
+# make sure we have at least 5.10 for some of it's features
+use v5.10.1;
+
+# package dependencies
+use POSIX;
+use Data::Dumper;
+use Cwd;
+use Carp;
+use File::Path qw(make_path remove_tree);
+use POSIX;
+use Sys::CPU qw(cpu_count);
+use Parallel::ForkManager;
+use Tie::File;
+
+my @args = @ARGV;
+
+# set base directory structure;
+use FindBin;
+my $working_dir = $FindBin::RealBin;
+print "Using $working_dir/lib\n";
+use lib "$FindBin::RealBin/lib";
+
+# print debug info to std out
+my $verbose = 0;
+
+# log file & run time initialization
+my $LOG_FILE = 'fastq_log.txt';
+open STDOUT, "| tee -a $working_dir/fastaOutput'/'$LOG_FILE" or croak "Tee stdout error";
+my $RUN_TIME = POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime);
+my $datetime = POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime);
+
+# Set initial data directory
+my $dir = "$working_dir/data_fastq";
+
+# throw error if dir is not present
+die "Error: need directory input." if ! -d $dir;
+
+# get list of fastq files in data_fastq directory
+opendir DIR, $dir or die "Error: can not open data directory $dir: $!\n";
+my @files = grep{ /\.fastq(?:\.gz)?$/} readdir DIR;
+closedir DIR;
+
+# throw error if no files found
+if(!@files){die "Error did not find any .fastq files in $dir.\n";}
+
+# otherwise continue
+print "Found files:\n";
+print join("\n", @files)."\n\n";
+
+
+
+# set up hash to check fastqSettings file against.
+my %fastqOptions = ('p' 	=>0,
+					'm' 	=>0,
+					'r' 	=>0,
+					'v' 	=>0,
+					'trim'	=>0);
+
+############################################################
+# make sure settings files are good before running scripts #
+############################################################
+
+# read settings file for joining
+my %fastqSettings;
+open INF, "< $working_dir/config/fastq-join.inf" or die "Error: can not open config/fastq-join.inf\n";
+while(<INF>){
+	chomp;
+	my @line = split ":";
+	$fastqSettings{$line[0]} = $line[1] if $line[0] !~ /^\#/; #skips '#' commented lines
+	carp "Unknown setting for fastq-join: $line[0] " if !exists $fastqOptions{$line[0]}; # check against specified options
+	$fastqOptions{$line[0]} = 1;
+}
+close INF;
+my $sum;
+map {$sum+=$_;} values %fastqOptions;
+carp "Not all settings present in fastq-join.inf\n" if $sum != 5;
+
+# read settings file for subSample
+my %subSample_settings;
+open INF, "< $working_dir/config/fastaSubSample.inf" or die "Error: can not open config/fastaSubSample.inf\n$!\n";
+while(<INF>){
+	chop;
+	my @line = split ":";
+	$subSample_settings{$line[0]} = $line[1];
+}
+close INF;
+
+
+# Set up output paths for all scripts
+make_path("$working_dir/fastaOutput/");
+make_path("$working_dir/fastQCoutput/");
+make_path("$working_dir/replicateMergeOutput/");
+make_path("$working_dir/fastqJoined/");
+make_path("$working_dir/trimmed/");
+make_path("$working_dir/joinedTrimmed/");
+
+# setup fork processes for up to # cores - 1
+my $pm = new Parallel::ForkManager(cpu_count()-1); 
+
+# start running scripts
+	print "##################################################\n";
+	print "                     FASTQ-JOIN\n";
+	print "##################################################\n";
+
+	print "> script start: $RUN_TIME\n";
+
+
+	
+	# files should be ordered R1, R2 so iterate by 2;  may not be true on non-OS x systems
+	for(my $i = 0; $i < $#files; $i = $i+2){
+		my $pid = $pm->start and next; # fork process
+		
+		# get basename for output
+		$files[$i] =~ /(.*)\_R.*(\.fastq)/;
+		my $out = $1."\_\%".$2;
+
+		# file checks
+		my @file1 = split '\_R', $files[$i];
+		my @file2 = split '\_R', $files[$i+1];
+		croak "Error: File input names do not match.\n$files[$i]\n$files[$i+1]\n" if $file1[0] ne $file2[0];
+	
+		print "Starting join...\n$files[$i]\t$files[$i+1]\n";
+
+		# setup command to execute
+		my $fastqJoin_cmd = $working_dir."/lib/fastq-join ".$working_dir."/data_fastq/$files[$i] ".$working_dir."/data_fastq/$files[$i+1] -o ".$working_dir."/fastqJoined/$out";
+		foreach my $key (keys %fastqSettings){
+			next if $key eq 'trim';
+			my ($base) = split '_', $out;
+			$fastqSettings{$key} = "$working_dir/fastqJoined/".$base.$fastqSettings{$key} if $key eq 'r';
+			$fastqJoin_cmd .= " -$key $fastqSettings{$key}";
+		}
+
+		print "\n$fastqJoin_cmd\n" if $verbose;
+		system("$fastqJoin_cmd");
+
+		# reset out to use as input for FastQC
+		$out =~ s/\%/join/;
+		
+		# run FastQC on joined file
+		print "\nRunning FastQC on joined file...\n";
+		print "\n$working_dir/lib/FastQC/fastqc $working_dir/fastqJoined/$out --outdir=$working_dir/fastQCoutput/ --noextract\n" if $verbose;
+		system("$working_dir/lib/FastQC/fastqc $working_dir/fastqJoined/$out --outdir=$working_dir/fastQCoutput/ --noextract");
+		
+		$pm->finish(0);
+		
+	}
+	$pm->wait_all_children;
+	
+	
+	print "> script finished: ".POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime)."\n";
+
+	# copy files over to joinedTrimmed folder for next step if trimming is on
+	system("cp $working_dir/fastqJoined/*join.fastq $working_dir/joinedTrimmed") if $fastqSettings{'trim'} eq 'on';
+	print "cp $working_dir/fastqJoined/*join.fastq $working_dir/joinedTrimmed\n" if $verbose && $fastqSettings{'trim'} eq 'on';
+
+	# get list of joined files
+	opendir my $DIR, "$working_dir/fastqJoined" or die "Error opening directory $!\n";
+	my @joinedFiles = grep {/\_join\.fastq/} readdir $DIR;
+	closedir $DIR;
+
+	# hash of seq IDs that were joined
+	my %joined;
+	foreach my $joinFile (@joinedFiles){
+		open my $INF, "$working_dir/fastqJoined/$joinFile" or die "Error opening file $!\n";
+		while (<$INF>){
+			chomp;
+			if ($_ =~ /^\@.*?:\d+?:\d+?-/){
+				my ($baseFileName) = $joinFile =~ /(.*)\_join/i;
+				$joined{$baseFileName}{$_} = 1;
+			}
+		}
+		close $INF;
+	}
+my %pairNames;
+map {$_ =~ /(.*?)R[12]/; $pairNames{$1}=1; } @files;
+
+	# if trimming is turned on
+	if ($fastqSettings{'trim'} eq 'on'){
+		print "Trimming files...\n";
+		
+		foreach my $pair(keys %pairNames){
+			my $pid = $pm->start and next;
+			
+			my @pairFiles = grep {/$pair/} @files;
+			print "$pair\n";
+			$files[$i] =~ /(.*\_R[1|2]).*\.fastq/;
+			
+			my $out = $1."\.fastq";
+			
+			if ($files[$i] =~ /(?:\.gz)|(?:\.tgz)$/){
+				print "gunzip -c $working_dir/data_fastq/$files[$i] > $working_dir/trimmed/$out\n" if $verbose;
+				system("gunzip -c $working_dir/data_fastq/$files[$i] > $working_dir/trimmed/$out");
+			}else{
+				print "cp $working_dir/data_fastq/$files[$i] $working_dir/trimmed/$out\n" if $verbose;
+				system("cp $working_dir/data_fastq/$files[$i] $working_dir/trimmed/$out");
+			}
+			
+			# execute trimming command
+			print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$out -sc=33\n" if $verbose;
+			system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$out -sc=33");
+			
+			my ($trim_out) = $out =~ s/\.fastq/_trim\.fastq/r;
+			
+			$pm->finish(0);	
+		}
+		$pm->wait_all_children;
+
+
+		print "\nConcatenating trimmed and joined sequences\n" if $verbose;
+		opendir my $DIR, "$working_dir/joinedTrimmed" or die "Error opening Directory $!\n";
+		@joinedFiles = grep {/\_join\.fastq$/} readdir $DIR;
+		closedir $DIR;
+	
+
+# 		foreach my $file (@joinedFiles){
+# 			my ($base) = $file =~ /(.*)\_join/i;	
+# 			print "Joined file: $file\n" if $verbose;
+		my %baseFileNames;
+		opendir $DIR, "$working_dir/trimmed" or die "Error opening directory $!\n";
+		my @trimmedFiles = grep {/\_R.*\_trim\.fastq/} readdir $DIR;
+		map {my ($name) = $_ =~ /(.*?)\_R.*\_trim\.fastq/; $baseFileNames{$name}=1;} @trimmedFiles;
+		closedir $DIR;		
+		my %trimmed;
+
+		foreach my $base (keys %baseFileNames){
+			my ($file) = grep {/$base/} @joinedFiles;
+			print "Merging Joined file: $file\n";
+			
+			foreach my $trimFile (grep {/$base/} @trimmedFiles){
+				print "\tTrimmed file: $trimFile\n";
+				my ($baseFileName) = $trimFile =~ /(.*)\_R/i;
+				open my $INF, "$working_dir/trimmed/$trimFile" or die "Error opening file $!\n";
+				while (<$INF>){
+					chomp;
+					if ($_ =~ /^\@.*?:\d+?:\d+?-/){
+						my ($seqid) = split '\s';
+						next if($joined{$baseFileName}{$seqid});
+
+						if ($trimFile =~ /R1/){
+							my $seq = <$INF>;
+							chomp($seq);
+							my $rev_seq = reverse $seq;
+							my $skip = <$INF>;
+							my $qual = <$INF>;
+							chomp($qual);
+							$rev_seq =~ tr/ACGTacgt/TGCAtgca/;
+							$trimmed{$baseFileName}{$seqid}{'R1'}{'seq'} = $rev_seq;
+							$trimmed{$baseFileName}{$seqid}{'R1'}{'qual'} = reverse $qual;
+						}elsif ($trimFile =~ /R2/){
+							my $seq = <$INF>;
+							chomp $seq;
+							$trimmed{$baseFileName}{$seqid}{'R2'}{'seq'} = $seq;
+							my $skip = <$INF>;
+							my $qual = <$INF>;
+							chomp $qual;
+							$trimmed{$baseFileName}{$seqid}{'R2'}{'qual'} = $qual;
+						}
+					}
+				}	
+				close $INF;	
+			}
+
+			open my $OPF, ">>". "$working_dir/joinedTrimmed/$file" or die "Error opening file $!\n";
+#print Dumper keys $joined{$base};
+#print Dumper keys $trimmed{$base};
+			foreach my $seq (keys %{$trimmed{$base}}){
+				next if $joined{$base}{$seq};
+				if ($trimmed{$base}{$seq}{'R1'} && $trimmed{$base}{$seq}{'R2'}){
+					print $OPF "$seq\n" . $trimmed{$base}{$seq}{'R2'}{'seq'} . $trimmed{$base}{$seq}{'R1'}{'seq'} . "\n" . "+\n" . $trimmed{$base}{$seq}{'R2'}{'qual'} . $trimmed{$base}{$seq}{'R1'}{'qual'} . "\n";
+				#	print "$seq\n" . $trimmed{$base}{$seq}{'R2'}{'seq'} . $trimmed{$base}{$seq}{'R1'}{'seq'} . "\n" . "+\n" . $trimmed{$base}{$seq}{'R2'}{'qual'} . $trimmed{$base}{$seq}{'R1'}{'qual'} . "\n";
+				}
+			}
+			close $OPF;
+		}
+	}
+
+
+print "##################################################\n";
+print "       Replicate Merge & Quality Filtering\n";
+print "##################################################\n";
+
+system("perl $working_dir/lib/replicateMerge.pl $working_dir/joinedTrimmed/") if $fastqSettings{'trim'} eq 'on';
+system("perl $working_dir/lib/replicateMerge.pl $working_dir/fastqJoined/") if $fastqSettings{'trim'} eq 'off';
+
+opendir my $DIRH, "$working_dir/replicateMergeOutput/" or die "error opening directory $!\n"; 
+@files = grep {/\.fastq/} readdir $DIRH;
+my @fasta_files = @files;
+map { $_ = "$working_dir/replicateMergeOutput/".$_ } @files;
+make_path("$working_dir/fastQCoutput/Filtered");
+system("$working_dir/lib/FastQC/fastqc ".join( " ", @files)." --outdir=$working_dir/fastQCoutput/Filtered --noextract");
+foreach my $file (@fasta_files){
+	my ($out) = $file =~ /(.*)\.fastq/;
+    system("perl $working_dir/lib/fastQ2A.pl $working_dir/replicateMergeOutput/$out.fastq");
+}
+
+
+if($subSample_settings{run} eq 'y'){
+	print "##################################################\n";
+	print "                     Sub-Sampling\n";
+	print "##################################################\n";
+	
+
+	if(defined $subSample_settings{size}){
+		system("perl $working_dir/lib/fastaSubSample.pl $working_dir/fastaOutput/ -size:$subSample_settings{size} -seed:$subSample_settings{seed}");
+	}else{
+		croak "Error: Problem with sub-sampling settings. \n";
+	}
+	
+	
+	print "##################################################\n";
+	print "                     AbIsotype\n";
+	print "##################################################\n";
+
+	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaSubSample_Out/ -diff:2");
+	
+	
+	
+	print "\n##################################################\n";
+	print   "                     Archiving\n";
+	print   "##################################################\n";
+	
+	print "> Archiving files...\n";
+
+    mkdir("$working_dir/IgSeq/Archive");
+    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ fastaSubSample_Out/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+
+}else{
+	
+	print "##################################################\n";
+	print "                     AbIsotype\n";
+	print "##################################################\n";
+	
+	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaOutput/ -diff:2");
+	
+	
+	print "\n##################################################\n";
+	print   "                     Archiving\n";
+	print   "##################################################\n";
+	
+	print "> Archiving files...\n";
+
+    mkdir("$working_dir/Archive");
+    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+}
+
+	print "> All files archived to fastq_analysis_$datetime.tgz\n";
+	print "Have a nice day!\n";
+=cut

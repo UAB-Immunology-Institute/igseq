@@ -1,0 +1,13 @@
+lineage_rep_size_cutoff:0
+cdr3_homology:85
+v_Variations:n
+d_Variations:y
+j_Variations:n
+useVDJ:y
+useJunction:n
+runIsotypes:n
+runWithIdenticals:y
+runWithoutIdenticals:n
+runV_genes:n
+circos_cutoffs:d|80 #(delta|0.1 d|80 d|20 seq|2000 lin|50)
+fileoutput:n
