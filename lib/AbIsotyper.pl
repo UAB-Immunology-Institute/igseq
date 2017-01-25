@@ -194,12 +194,11 @@ my $sampleReduce = 0;
 
     close INFSETTINGS;
 
-
 # read and process data 
-
 	print "> Processing files...\n";
 	my $pm = new Parallel::ForkManager(cpu_count()-1);
-	my $primer_count=0;
+	my $fwdPrimer_count=0;
+	my $revPrimer_count=0;
     foreach my $file(@files){                                                   # for each file
     	my $pid = $pm->start and next;                                          # fork a new process
     	
@@ -213,6 +212,8 @@ my $sampleReduce = 0;
         my %counts;
         my $flag;
         
+        my %barcodes;
+        
         while (<INF>){
         	my $line1 = $_;
         	my $line2 = <INF>;
@@ -223,11 +224,13 @@ my $sampleReduce = 0;
         	$i++;
         	
             if($line1 =~ /^\>/){
-            	my $barcode;
-            	($line2, $barcode) = removePrimer($line2, \%primers, \$primer_count);
+            	my ($fwdBarcode, $revBarcode);
+            	($line2, $fwdBarcode) = removePrimer($line2, \%fwdPrimers, \$fwdPrimer_count, \%settings);
+            	($line2, $revBarcode) = constantRegionPrimer($line2, \%revPrimers, \$revPrimer_count, \%settings);
             	next if ! $line2;
+
+            	$barcodes{$fwdBarcode.'|'.$revBarcode}++;
             	$line1 = type($line1, $line2, \%labels, \%counts);
-# /(CAGGT(G|T)CAGCTGGTGCAG|(G|C)AGGTCCAGCTGGTACAG|CA(G|A)ATGCAGCTGGTGCAG|CAGGTCACCTTGA(G|A)GGAG|GGTCCCTGAGACTCTCCTGT|ACCCTGTCCCTCACCTGC|GCAGCTGGTGCAGTCTGGAG|CAGGACTGGTGAAGCCCTCG|CAGGTGCAGCTGGTGCAA)/;
 
             	if($line1){
 					my ($c) = $line1 =~ />(\w+?)\_/;
@@ -242,7 +245,7 @@ my $sampleReduce = 0;
                     "Check formatting\n";
             }
         }
-        print "> $file\tNumber of sequences with primers identified: $primer_count\n";
+        print "> $file\tNumber of sequences with barcodes identified: ".scalar(keys(%barcodes))."\n";
         close INF;
         close OPF;
         
@@ -250,6 +253,11 @@ my $sampleReduce = 0;
         foreach my $count(keys %counts){
         	print ">\t$count: $counts{$count}\n";
     	}
+    	
+    	open my $TMP, '>', "barcode_output.txt" or die "Error opening file $!\n";
+    	map {print $TMP "$_\t$barcodes{$_}\n"} keys %barcodes;
+    	close $TMP;
+    	
         $pm->finish(0);
     }
     $pm->wait_all_children;
@@ -291,30 +299,33 @@ sub removePrimer{
 	my $line2 = shift;
 	my $primers = shift;
 	my $count = shift;
+	my $settings = shift;
 	
-	my $regex = join '|', keys %{$primers};
+	my $regex = join ')|(', keys %{$primers};
+	$regex = '('.$regex.')';
 
-
-	if ($line2 =~ s/(.*?)($regex)//i){
-		
+	if ($line2 =~ s/(?'barcode'(?:.{8}|.{4}))($regex)//i){
 		$$count++;
-		return ($line2,$1);
+		return ($line2,$+{barcode});
 	}
-=pod
-	else{
-		foreach my $primer (keys %{$primers}){
-			my $length = length($primer) + 4;
-			my $linequery = substr($line2, 0, $length);
-			my $diff = distance($primer, $linequery);
-			if ($diff <= 5){
-				$$count++;
-				return $line2;
-			}
-		}
-	}
-=cut
 	return 0;
 }
+
+sub constantRegionPrimer{
+	my $line2 = shift;
+	my $constantRegionPrimers = shift;
+	my $count = shift;
+	my $settings = shift;
+	
+	my $regex = join ')|(', keys %{$constantRegionPrimers};
+	$regex = '('.$regex.')';
+
+	if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
+		$$count++;
+		return ($line2,$+{barcode});
+	}
+}
+
 sub type{ #determines isotype for a sequence
 	my $line1  = shift;
 	my $line2  = shift;
