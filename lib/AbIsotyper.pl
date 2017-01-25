@@ -123,22 +123,43 @@ my $sampleReduce = 0;
 # grab primers from file
     open my $settingsINF, "<". "$working_dir/config/primers.inf" or die "Error opening settings file $working_dir/config/primers.inf $!\n";
     my %settings;
-    my %primers;
-    my $sequenceFlag=0;
+    my %fwdPrimers;
+    my %revPrimers;
+    my $fwdSection=0;
+    my $revSection=0;
     while (<$settingsINF>){
     	my $line = $_;
 		chomp $line;
-    	if ($line =~ /^#/){
-    		$sequenceFlag = $sequenceFlag ? 0 : 1; # if	 sequence flag is on turn it off, if it is off turn it on
+    	if ($line =~ /^# Forward/){
+    		$fwdSection = $fwdSection ? 0 : 1; # if	 fwdSection flag is on turn it off, if it is off turn it on
     		next;
-    	}
-    	if ($sequenceFlag){
+    	}elsif($line =~ /^# Reverse/){
+    		$revSection = $revSection ? 0 : 1; # if	 revSection flag is on turn it off, if it is off turn it on
+    		next;
+		}
+    	
+    	if ($fwdSection){
     		if ($line =~ /R|Y|M|K|S|W|H|B|V|D|N/){
 				$line = replaceOdd($line);
     		}
-    		$primers{$line}=1;
+    		$fwdPrimers{$line}=1;
+    		my $reverse = reverse $line;
+			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
+			$fwdPrimers{$reverse}=1;
     		next;
     	}
+    	
+    	if ($revSection){
+    		if ($line =~ /R|Y|M|K|S|W|H|B|V|D|N/){
+				$line = replaceOdd($line);
+    		}
+    		$revPrimers{$line}=1;
+    		my $reverse = reverse $line;
+			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
+			$revPrimers{$reverse}=1;
+    		next;
+    	}
+    	
 		my ($data) = split('#', $line);
 		my ($parameter, $value) = split ':', $data;
 		$settings{$parameter} = $value;

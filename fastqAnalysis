@@ -235,7 +235,7 @@ $verbose = 1;
 			
 			for (my $i = 0; $i <= $#pairFiles; $i++){	
 				if ($pairFiles[$i] =~ /(?:\.gz)|(?:\.tgz)$/){
-					my ($fn) = $pairFiles[$i] =~ s/\.(t)?gz//r;
+					my ($fn) = $pairFiles[$i] =~ s|\.(t)?gz||r;
 					print "gunzip -c $working_dir/data_fastq/$pairFiles[$i] > $working_dir/trimmed/$pairFiles[$i]\n" if $verbose;
 					system("gunzip -c $working_dir/data_fastq/$pairFiles[$i] > $working_dir/trimmed/$pairFiles[$i]");
 				}else{
