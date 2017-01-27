@@ -142,6 +142,7 @@ make_path(File::Spec->catpath($working_dir,'trimmed'));
 make_path(File::Spec->catpath($working_dir,'joinedTrimmed'));
 make_path(File::Spec->catpath($working_dir,'barcodeOutput'));
 make_path(File::Spec->catpath($working_dir,'fastQCoutput','Filtered'));
+make_path(File::Spec->catpath($working_dir,'Archive'));
 
 # setup fork processes for up to # cores - 1
 my $pm = new Parallel::ForkManager(cpu_count()-1); 
@@ -358,7 +359,6 @@ print "##################################################\n";
 #system("perl $working_dir/lib/replicateMerge.pl $working_dir/joinedTrimmed/") if $fastqSettings{'trim'} eq 'on';
 my $repmergeCMD = File::Spec->catfile($working_dir,'lib','replicateMerge.pl ').
 				  File::Spec->catfile($working_dir,'fastqJoined');
-print Dumper $repmergeCMD;
 system("perl $repmergeCMD") if $fastqSettings{'trim'} eq 'off';
 
 opendir my $DIRH, File::Spec->catfile($working_dir,'replicateMergeOutput') or die "error opening directory $!\n"; 
@@ -368,11 +368,13 @@ map { $_ = File::Spec->catfile($working_dir,'replicateMergeOutput',$_) } @files;
 
 my $fastqcCMD = File::Spec->catfile($working_dir,'lib','FastQC','fastqc '.join(" ", @files)).
 				File::Spec->catfile(" --outdir=$working_dir",'fastQCoutput','Filtered --noextract');
-print Dumper $fastqcCMD;
 system($fastqcCMD);
+
 foreach my $file (@fasta_files){
 	my ($out) = $file =~ /(.*)\.fastq/;
-    system("perl $working_dir/lib/fastQ2A.pl $working_dir/replicateMergeOutput/$out.fastq");
+	my $fastq2aCMD = File::Spec->catfile($working_dir,'lib','fastQ2A.pl ').
+					 File::Spec->catfile($working_dir,'replicateMergeOutput',"$out.fastq");
+    system("perl $fastq2aCMD");
 }
 
 
@@ -383,7 +385,10 @@ if($subSample_settings{run} eq 'y'){
 	
 
 	if(defined $subSample_settings{size}){
-		system("perl $working_dir/lib/fastaSubSample.pl $working_dir/fastaOutput/ -size:$subSample_settings{size} -seed:$subSample_settings{seed}");
+		my $fastasubsampleCMD = File::Spec->catfile($working_dir,'lib','fastaSubSample.pl ').
+								File::Spec->catfile($working_dir,'fastaOutput ').
+								"-size:$subSample_settings{size} -seed:$subSample_settings{seed}";
+		system("perl $fastasubsampleCMD");
 	}else{
 		croak "Error: Problem with sub-sampling settings. \n";
 	}
@@ -392,8 +397,10 @@ if($subSample_settings{run} eq 'y'){
 	print "##################################################\n";
 	print "                     AbIsotype\n";
 	print "##################################################\n";
-
-	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaSubSample_Out/ -diff:2");
+	
+	my $abisotyperCMD = File::Spec->catfile($working_dir,'lib','AbIsotyper.pl ').
+						File::Spec->catfile($working_dir,'fastaSubSample_Out -diff:2');
+	system("perl $abisotyperCMD");
 	
 	
 	
@@ -402,9 +409,13 @@ if($subSample_settings{run} eq 'y'){
 	print   "##################################################\n";
 	
 	print "> Archiving files...\n";
-
-    mkdir("$working_dir/IgSeq/Archive");
-    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz joinedTrimmed/ trimmed/ fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ fastaSubSample_Out/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+	my $archCMD = File::Spec->catfile($working_dir,'Archive',"fastq_analysis_$datetime.tgz ").
+				  "joinedTrimmed trimmed fastqJoined fastaOutput AbIsotyper_Out fastQCoutput replicateMergeOutput fastaSubSample_Out ".
+				  File::Spec->catfile('config','AbIsotyper_labels.inf ').
+				  File::Spec->catfile('config','fastaSubSample.inf ').
+				  File::Spec->catfile('config','fastq-join.inf ').
+				  File::Spec->catfile('config','replicateConfig.inf');
+    system("tar -C $working_dir -zcf $archCMD");
 
 }else{
 	
@@ -412,8 +423,9 @@ if($subSample_settings{run} eq 'y'){
 	print "                     AbIsotype\n";
 	print "##################################################\n";
 	
-	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaOutput/ -diff:2");
-	
+	my $abisotyperCMD = File::Spec->catfile($working_dir,'lib','AbIsotyper.pl ').
+						File::Spec->catfile($working_dir,'fastaOutput -diff:2');
+	system("perl $abisotyperCMD");
 	
 	print "\n##################################################\n";
 	print   "                     Archiving\n";
@@ -421,8 +433,14 @@ if($subSample_settings{run} eq 'y'){
 	
 	print "> Archiving files...\n";
 
-    mkdir("$working_dir/Archive");
-    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz joinedTrimmed/ trimmed/ fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+	my $archCMD = File::Spec->catfile($working_dir,'Archive',"fastq_analysis_$datetime.tgz ").
+				  "joinedTrimmed trimmed fastqJoined fastaOutput AbIsotyper_Out fastQCoutput replicateMergeOutput fastaSubSample_Out ".
+				  File::Spec->catfile('config','AbIsotyper_labels.inf ').
+				  File::Spec->catfile('config','fastaSubSample.inf ').
+				  File::Spec->catfile('config','fastq-join.inf ').
+				  File::Spec->catfile('config','replicateConfig.inf');
+    system("tar -C $working_dir -zcf $archCMD");    
+    
 }
 
 	print "> All files archived to fastq_analysis_$datetime.tgz\n";

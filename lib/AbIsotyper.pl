@@ -54,6 +54,7 @@ use Text::LevenshteinXS qw(distance);
 use Carp;
 use File::Basename;
 use File::Path;
+use File::Spec;
 use POSIX;
 use Data::Dumper;
 use Parallel::ForkManager;
@@ -69,7 +70,9 @@ use 5.012;
 ##           Variables            ##
 ####################################
 my $working_dir = $FindBin::RealBin;
-$working_dir =~ s/\/lib//;
+my ($vol,$dir,$file) = File::Spec->splitpath($working_dir);
+$working_dir = $dir;
+
 my %data;
 my %labels;
 my $difference;
@@ -107,12 +110,9 @@ my $sampleReduce = 0;
     my $numOfJunk = grep{ /^\./} @tmpfiles;
     splice @tmpfiles, 0, $numOfJunk;
     unshift @tmpfiles, '';
-    push @files, split ' ', join " $inputDir", @tmpfiles;
-	@files = grep{ /\.fasta$/} @files;
-
-    closedir DIR;
+    
+    map {push @files, File::Spec->catfile($inputDir,$_)} grep{/\.fasta$/}@tmpfiles;
 	my $base = basename($inputDir);
-	
 	
 # time stamp for running script and log file
 
@@ -121,7 +121,7 @@ my $sampleReduce = 0;
     my $RUN_TIME = POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime);
 
 # grab primers from file
-    open my $settingsINF, "<". "$working_dir/config/primers.inf" or die "Error opening settings file $working_dir/config/primers.inf $!\n";
+    open my $settingsINF, "<". File::Spec->catfile($working_dir,'config','primers.inf') or die "Error opening settings file primers.inf\n$!\n";
     my %settings;
     my %fwdPrimers;
     my %revPrimers;
