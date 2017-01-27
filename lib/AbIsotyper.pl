@@ -254,7 +254,7 @@ my $sampleReduce = 0;
         	print ">\t$count: $counts{$count}\n";
     	}
     	
-    	open my $TMP, '>', "barcode_output.txt" or die "Error opening file $!\n";
+    	open my $TMP, '>', File::Spec->catfile($working_dir,'barcodeOutput','barcode_output.txt') or die "Error opening file $!\n";
     	map {print $TMP "$_\t$barcodes{$_}\n"} keys %barcodes;
     	close $TMP;
     	
