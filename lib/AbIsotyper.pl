@@ -54,6 +54,7 @@ use Text::LevenshteinXS qw(distance);
 use Carp;
 use File::Basename;
 use File::Path;
+use File::Path qw(make_path);
 use File::Spec;
 use POSIX;
 use Data::Dumper;
@@ -167,21 +168,21 @@ my $sampleReduce = 0;
 
 # output directory
 
-    $outDir = "$working_dir/AbIsotyper\_Out/$base\_".POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime);    
-    mkpath($outDir) or die "Error Making output directory $!\n";
+    $outDir = File::Spec->catfile($working_dir,'AbIsotyper_Out',"$base\_".POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime));    
+    make_path($outDir) or die "Error Making output directory $!\n";
     
 # append to log file whatever shows up on terminal (errors only show up on STDERR on terminal)
 
-    open STDOUT, "| tee -a $outDir'/'$LOG_FILE" or croak "Tee stdout error";
+    open STDOUT, "| tee -a ".File::Spec->catfile($outDir,$LOG_FILE) or croak "Tee stdout error";
     print "*********************************************\n";
     print "> script start: $RUN_TIME\n";
 
 
 # read labels into %labels variable
 
-    open INFSETTINGS, "< $working_dir/config/AbIsotyper_labels.inf" or croak "ERROR: can't open AbIsotyper_labels.inf\nMake sure file is in same directory as AbIsotyper.pl $!\n";
-    while (<INFSETTINGS>){
-        chop;
+    open my $INFSETTINGS, '<', File::Spec->catfile($working_dir,'config','AbIsotyper_labels.inf') or croak "ERROR: can't open AbIsotyper_labels.inf\n$!\n";
+    while (<$INFSETTINGS>){
+        chomp;
         my @row = split ':';
         if(exists $labels{$row[1]}){
             print "Warning possible identical sequences in label file.\n";
@@ -192,7 +193,7 @@ my $sampleReduce = 0;
     }
     croak "ERROR: Problem with labels file (AbIsotyper_labels.inf). Check usage.\n" if scalar keys %labels == 0;
 
-    close INFSETTINGS;
+    close $INFSETTINGS;
 
 # read and process data 
 	print "> Processing files...\n";
@@ -203,10 +204,10 @@ my $sampleReduce = 0;
     	my $pid = $pm->start and next;                                          # fork a new process
     	
     	srand($seed) if $seed;                                                  # set rng seed
-        open INF, "<$file" or croak "ERROR: can not open input file $file\n";
+        open my $INF, '<', $file or croak "ERROR: can not open input file $file\n$!\n";
 		
 		$file =~ s/.*\/(.*)/$1/;
-		open OPF, ">> $outDir/$file" or croak "Error opening: $outDir/$file\n$!\n";
+		open my $OPF, '>>', File::Spec->catfile($outDir,$file) or croak "Error opening $file\n$!\n";
 
         my $i=0;
         my %counts;
@@ -214,9 +215,9 @@ my $sampleReduce = 0;
         
         my %barcodes;
         
-        while (<INF>){
+        while (<$INF>){
         	my $line1 = $_;
-        	my $line2 = <INF>;
+        	my $line2 = <$INF>;
         	
 			chop($line1);
         	chop($line2);
@@ -235,8 +236,8 @@ my $sampleReduce = 0;
             	if($line1){
 					my ($c) = $line1 =~ />(\w+?)\_/;
 					$counts{$c}++;
-            		print OPF $line1."\n";
-            		print OPF lc $line2."\n";
+            		print $OPF $line1."\n";
+            		print $OPF lc $line2."\n";
             	}else{
             		die "ERROR: NOTHING ASSINGED TO A SEQUENCE";
                 }
@@ -246,8 +247,8 @@ my $sampleReduce = 0;
             }
         }
         print "> $file\tNumber of sequences with barcodes identified: ".scalar(keys(%barcodes))."\n";
-        close INF;
-        close OPF;
+        close $INF;
+        close $OPF;
         
         print "> Isotype proportions for $file\n";
         foreach my $count(keys %counts){
@@ -391,85 +392,12 @@ sub type{ #determines isotype for a sequence
 	return 0;
 }
 
-# sub type{ #determines isotype for a sequence
-# 	my $line1  = shift;
-# 	my $line2  = shift;
-# 	my $labels = shift;
-# 	my $counts = shift;
-# 	$line1 =~ s/(.*?:.*?:).*?-/$1/;
-# 	my $verbose = 0;
-# 	print "Seq:$line2\n" if $verbose;
-# 	my $newlabel;
-# 	my $dist;
-# 	my @matches;
-# 	
-# 	foreach my $label(keys %{$labels}){
-# 		print "Label:$label\n" if $verbose;
-# 		if($line2 =~ /$label/){                                                # if label match is found directly
-# 			print "MATCH: $labels{$label}\n" if $verbose;
-# 			my $matchtmp = $line1;
-# 			my @tmpSplit = split ('', $line1);
-# 			splice(@tmpSplit, 0, 1, ('>', uc"$labels{$label}", '_'));
-# 			$line1 = join( '',  @tmpSplit);
-# 
-# 			$counts->{uc"$labels->{$label}"}++;
-# 			return ($line1);                                                    # add label, go to next seq
-# 		}else{                                                                  # otherwise see if theres a match within the cut off range
-# 			if(length($line2)<= length($label)){next;}
-# 			my @tmpSplit  = split( '', $line2);									
-# 			my $sequence = join( '', splice( @tmpSplit, -(length($label))));	
-# 
-# 			my $tmpdist = distance($sequence, $label);
-# 			print "STRCMP: $tmpdist\n" if $verbose;
-# 			if($tmpdist <= $difference){                   #levenshtein distance matched within cut off add label
-# 				@tmpSplit = split ('', $line1);
-# 				splice(@tmpSplit, 0, 1, ('>', uc"$labels->{$label}", '_'));
-# 				$line1 = join ('', @tmpSplit);
-# 				return ($line1);
-# 				
-# 				
-# # 				if (!defined($dist) || $dist > $tmpdist){
-# # 					$newlabel = uc $labels->{$label};
-# # 					$counts->{uc"$labels->{$label}"}++ if !defined($dist);
-# # 					
-# # 					$dist = $tmpdist;
-# # 				}elsif($dist == $tmpdist){
-# # 					if (uc $newlabel ne uc $labels->{$label}){
-# # 						print "Warning ambigous isotype found!\n $line1 \n $newlabel \t $labels->{$label}\n";
-# # 					}
-# # 				}
-# 			}
-# 		}
-# #		my $hold = <STDIN> if $verbose;
-# 	}
-# 
-# 
-# # 	if ($newlabel){
-# # 		my @tmpSplit = split ('', $line1);
-# # 		splice(@tmpSplit, 0, 1, ('>', $newlabel, '_'));
-# # 		$line1 = join ('', @tmpSplit);
-# # 		return ($line1);                                              # label added go to next seq
-# # 	}
-# 	
-#   # otherwise no match and not a truncated seq, add U instead       
-# 
-# 	my @tmpSplit = split ('', $line1);
-# 	splice(@tmpSplit, 0, 1, ('>', 'U', '_'));
-# 	$line1 = join( '',  @tmpSplit);   
-# 
-# 	$counts->{U}++;
-# 	return ($line1);
-# 	
-# }
-# 
-
 
 sub truncated{ #similar to above algorithm except truncating the sequence labels incase of early sequencing termination
     my $seq         = shift;
     my $labels      = shift;
     my $largest     = shift;
     my $difference  = shift;
-#    my $counts      = shift;
 
     my %truncatedLabels;
     
@@ -487,7 +415,6 @@ sub truncated{ #similar to above algorithm except truncating the sequence labels
             splice(@tmpSplit, 0, 1, ('>', uc"$truncatedLabels{$label}", '_'));
             $seq->[0] = join( '',  @tmpSplit);
 
-            #$counts->{uc $truncatedLabels{$label} }++;
             return $seq->[0];
         }else{
 			my @tmpSplit  = split( '', $tmpSeq);
@@ -498,7 +425,6 @@ sub truncated{ #similar to above algorithm except truncating the sequence labels
 				splice(@tmpSplit, 0, 1, ('>', uc"$truncatedLabels{$label}", '_'));
 				$seq->[0] = join( '',  @tmpSplit);
 
-				#$counts->{uc $truncatedLabels{$label} }++;
 				return $seq->[0];
 			}
         }
