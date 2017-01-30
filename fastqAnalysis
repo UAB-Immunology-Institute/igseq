@@ -231,15 +231,138 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 my %pairNames;
 map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 
+$verbose = 1;
+	# if trimming is turned on
+	if ($fastqSettings{'trim'} eq 'on'){
+		print "Trimming files...\n";
+		
+		foreach my $pair(keys %pairNames){
+			#my $pid = $pm->start and next;
+			
+			my @pairFiles = grep {/$pair/} @files;
+			print "$pair\n";
+			die "Error, Sample names are too similar.\n" if scalar(@pairFiles) > 2;
+			
+			my $out = $pair."\.fastq";
+
+			for (my $i = 0; $i <= $#pairFiles; $i++){	
+				if ($pairFiles[$i] =~ /(?:\.gz)|(?:\.tgz)$/){
+					my ($fn) = $pairFiles[$i] =~ s|\.(t)?gz||r;
+					my $gunzipCMD = File::Spec->catfile($working_dir,'data_fastq',"$pairFiles[$i] > ").
+									File::Spec->catfile($working_dir,'trimmed',$pairFiles[$i]);
+					print "gunzip -c $gunzipCMD" if $verbose;
+					system("gunzip -c $gunzipCMD");
+				}else{
+					$cpCMD = File::Spec->catfile($working_dir,'data_fastq',$pairFiles[$i],' ').
+							 File::Spec->catfile($working_dir,'trimmed',$pairFiles[$i]);
+					print "cp cpCMD\n" if $verbose;
+					system("cp cpCMD");
+				}
+				print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35\n" if $verbose;
+				#system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
+				my $out = $pairFiles[$i];
+				$out =~ s/(\.fastq)/_trim$1/g;
+				system("cp $working_dir/trimmed/$pairFiles[$i] $working_dir/trimmed/$out");
+			}
+
+			# execute trimming command
+			#print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
+			
+			
+			my ($trim_out) = $out =~ s/\.fastq/_trim\.fastq/r;
+			
+			#$pm->finish(0);	
+		}
+		#$pm->wait_all_children;
+
+		print "\nConcatenating trimmed and joined sequences\n" if $verbose;
+		opendir my $DIR, "$working_dir/joinedTrimmed" or die "Error opening Directory $!\n";
+		@joinedFiles = grep {/\_join\.fastq$/} readdir $DIR;
+		closedir $DIR;
+	#print '@joinedFiles' ."\n";
+	#print Dumper @joinedFiles;
+
+# 		foreach my $file (@joinedFiles){
+# 			my ($base) = $file =~ /(.*)\_join/i;	
+# 			print "Joined file: $file\n" if $verbose;
+		my %baseFileNames;
+		opendir $DIR, "$working_dir/trimmed" or die "Error opening directory $!\n";
+		my @trimmedFiles = grep {/\_R.*\_trim\.fastq/} readdir $DIR;
+		map {my ($name) = $_ =~ /(.*?)\_R.*\_trim\.fastq/; $baseFileNames{$name}=1;} @trimmedFiles;
+		closedir $DIR;		
+		my %trimmed;
+#print Dumper %baseFileNames;
+#print Dumper @trimmedFiles;
+
+		foreach my $base (keys %baseFileNames){
+			my ($file) = grep {/$base/} @joinedFiles;
+			print "Merging Joined file: $file\n";
+			#my $hold = <STDIN>;
+			foreach my $trimFile (grep {/$base/} @trimmedFiles){
+				print "\tTrimmed file: $trimFile\n";
+				my ($baseFileName) = $trimFile =~ /(.*)\_R/i;
+				open my $INF, "$working_dir/trimmed/$trimFile" or die "Error opening file $!\n";
+				while (<$INF>){
+					chomp;
+					if ($_ =~ /^\@.*?:\d+?:\d+?-/){
+						my ($seqid) = split '\s';
+						next if($joined{$baseFileName}{$seqid});
+
+						if ($trimFile =~ /R1/){
+							my $seq = <$INF>;
+							chomp($seq);
+							my $rev_seq = reverse $seq;
+							my $skip = <$INF>;
+							my $qual = <$INF>;
+							chomp($qual);
+							$rev_seq =~ tr/ACGTacgt/TGCAtgca/;
+							$trimmed{$baseFileName}{$seqid}{'R1'}{'seq'} = $rev_seq;
+							$trimmed{$baseFileName}{$seqid}{'R1'}{'qual'} = reverse $qual;
+						}elsif ($trimFile =~ /R2/){
+							my $seq = <$INF>;
+							chomp $seq;
+							$trimmed{$baseFileName}{$seqid}{'R2'}{'seq'} = $seq;
+							my $skip = <$INF>;
+							my $qual = <$INF>;
+							chomp $qual;
+							$trimmed{$baseFileName}{$seqid}{'R2'}{'qual'} = $qual;
+						}
+					}
+				}	
+				close $INF;	
+			}
+			print "Generating Joined/Trimmed output $file\n";
+			#$hold=<>;
+			open my $OPF, ">>". "$working_dir/joinedTrimmed/$file" or die "Error opening file $!\n";
+#print Dumper keys $joined{$base};
+#print Dumper keys $trimmed{$base};
+			foreach my $seq (keys %{$trimmed{$base}}){
+				next if $joined{$base}{$seq};
+				#print "$seq\n";
+				#print Dumper $trimmed{$base}{$seq}{'R1'};
+				#print Dumper $trimmed{$base}{$seq}{'R2'};
+				#print "\n\n";
+				
+				if ($trimmed{$base}{$seq}{'R1'} && $trimmed{$base}{$seq}{'R2'}){
+					print $OPF "$seq\n" . $trimmed{$base}{$seq}{'R2'}{'seq'} . $trimmed{$base}{$seq}{'R1'}{'seq'} . "\n" . "+\n" . $trimmed{$base}{$seq}{'R2'}{'qual'} . $trimmed{$base}{$seq}{'R1'}{'qual'} . "\n";
+				#	print "$seq\n" . $trimmed{$base}{$seq}{'R2'}{'seq'} . $trimmed{$base}{$seq}{'R1'}{'seq'} . "\n" . "+\n" . $trimmed{$base}{$seq}{'R2'}{'qual'} . $trimmed{$base}{$seq}{'R1'}{'qual'} . "\n";
+				}
+			}
+			close $OPF;
+		}
+	}
+
 
 print "##################################################\n";
 print "       Replicate Merge & Quality Filtering\n";
 print "##################################################\n";
 
-#system("perl $working_dir/lib/replicateMerge.pl $working_dir/joinedTrimmed/") if $fastqSettings{'trim'} eq 'on';
-my $repmergeCMD = File::Spec->catfile($working_dir,'lib','replicateMerge.pl ').
-				  File::Spec->catfile($working_dir,'fastqJoined');
-system("perl $repmergeCMD") if $fastqSettings{'trim'} eq 'off';
+
+my $repmergeCMD = File::Spec->catfile($working_dir,'lib','replicateMerge.pl ');
+$repmergeCMD .= File::Spec->catfile($working_dir,'fastqJoined') if $fastqSettings{'trim'} eq 'off';
+$repmergeCMD .= File::Spec->catfile($working_dir,'joinedTrimmed') if $fastqSettings{'trim'} eq 'on';
+
+system("perl $repmergeCMD");
 
 opendir my $DIRH, File::Spec->catfile($working_dir,'replicateMergeOutput') or die "error opening directory $!\n"; 
 @files = grep {/\.fastq/} readdir $DIRH;

@@ -125,7 +125,9 @@ my $sampleReduce = 0;
     open my $settingsINF, "<". File::Spec->catfile($working_dir,'config','primers.inf') or die "Error opening settings file primers.inf\n$!\n";
     my %settings;
     my %fwdPrimers;
+    my %fwdRevCompPrimers;
     my %revPrimers;
+    my %revRevCompPrimers;
     my $fwdSection=0;
     my $revSection=0;
     while (<$settingsINF>){
@@ -146,7 +148,7 @@ my $sampleReduce = 0;
     		$fwdPrimers{$line}=1;
     		my $reverse = reverse $line;
 			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
-			$fwdPrimers{$reverse}=1;
+			$fwdRevCompPrimers{$reverse}=1;
     		next;
     	}
     	
@@ -157,7 +159,7 @@ my $sampleReduce = 0;
     		$revPrimers{$line}=1;
     		my $reverse = reverse $line;
 			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
-			$revPrimers{$reverse}=1;
+			$revRevCompPrimers{$reverse}=1;
     		next;
     	}
     	
@@ -209,6 +211,8 @@ my $sampleReduce = 0;
 		$file =~ s/.*\/(.*)/$1/;
 		open my $OPF, '>>', File::Spec->catfile($outDir,$file) or croak "Error opening $file\n$!\n";
 
+        my ($base) = $file =~ s/\..*//r;
+
         my $i=0;
         my %counts;
         my $flag;
@@ -225,9 +229,9 @@ my $sampleReduce = 0;
         	$i++;
         	
             if($line1 =~ /^\>/){
-            	my ($fwdBarcode, $revBarcode);
-            	($line2, $fwdBarcode) = removePrimer($line2, \%fwdPrimers, \$fwdPrimer_count, \%settings);
-            	($line2, $revBarcode) = constantRegionPrimer($line2, \%revPrimers, \$revPrimer_count, \%settings);
+            	my ($fwdBarcode, $revBarcode) = ('','');
+            	($line2, $fwdBarcode) = removePrimer($line2, \%fwdPrimers, \%fwdRevCompPrimers, \$fwdPrimer_count, \%settings) if scalar(keys(%fwdPrimers)) > 0;
+            	($line2, $revBarcode) = constantRegionPrimer($line2, \%revPrimers, \%revRevCompPrimers, \$revPrimer_count, \%settings) if scalar(keys(%revPrimers)) > 0;
             	next if ! $line2;
 
             	$barcodes{$fwdBarcode.'|'.$revBarcode}++;
@@ -246,7 +250,11 @@ my $sampleReduce = 0;
                     "Check formatting\n";
             }
         }
-        print "> $file\tNumber of sequences with barcodes identified: ".scalar(keys(%barcodes))."\n";
+        my $sum = 0;
+        map {$sum += $barcodes{$_};} keys %barcodes;
+
+        print "> $file\tNumber of unique barcodes identified: ".scalar(keys(%barcodes))."\n";
+        print "> $file\tNumber of total sequences with barcodes identified: $sum\n"; 
         close $INF;
         close $OPF;
         
@@ -255,7 +263,7 @@ my $sampleReduce = 0;
         	print ">\t$count: $counts{$count}\n";
     	}
     	
-    	open my $TMP, '>', File::Spec->catfile($working_dir,'barcodeOutput','barcode_output.txt') or die "Error opening file $!\n";
+    	open my $TMP, '>', File::Spec->catfile($working_dir,'barcodeOutput',"$base\_barcode_output.txt") or die "Error opening file $!\n";
     	map {print $TMP "$_\t$barcodes{$_}\n"} keys %barcodes;
     	close $TMP;
     	
@@ -299,32 +307,47 @@ sub replaceOdd{
 sub removePrimer{
 	my $line2 = shift;
 	my $primers = shift;
+    my $revCompPrimers = shift;
 	my $count = shift;
 	my $settings = shift;
 	
 	my $regex = join ')|(', keys %{$primers};
 	$regex = '('.$regex.')';
 
+    my $regexRevComp = join ')|(', keys %{$revCompPrimers};
+    $regexRevComp = '('.$regexRevComp.')';
+
 	if ($line2 =~ s/(?'barcode'(?:.{8}|.{4}))($regex)//i){
 		$$count++;
 		return ($line2,$+{barcode});
-	}
+	}elsif($line2 =~ s/($regexRevComp)(?'barcode'(?:.{8}|.{4}))//i){
+        $$count++;
+        return ($line2,$+{barcode});
+    }
 	return 0;
 }
 
 sub constantRegionPrimer{
 	my $line2 = shift;
 	my $constantRegionPrimers = shift;
+    my $revCompPrimers = shift;
 	my $count = shift;
 	my $settings = shift;
 	
 	my $regex = join ')|(', keys %{$constantRegionPrimers};
 	$regex = '('.$regex.')';
 
-	if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
+    my $regexRevComp = join ')|(', keys %{$revCompPrimers};
+    $regexRevComp = '('.$regexRevComp.')';
+
+	#if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
+    if ($line2 =~ /(?'barcode'(?:.{12}))(?:$regex)/i){
 		$$count++;
 		return ($line2,$+{barcode});
-	}
+	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{12}))/i){
+        $$count++;
+        return ($line2,$+{barcode});
+    }
 }
 
 sub type{ #determines isotype for a sequence

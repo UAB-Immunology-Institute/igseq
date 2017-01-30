@@ -1,4 +1,4 @@
-trim:off
+trim:on
 p:8:percent maximum difference
 m:6:minimum overlap
 r:join_report.txt:verbose output
