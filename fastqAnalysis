@@ -231,7 +231,7 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 my %pairNames;
 map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 
-$verbose = 1;
+#$verbose = 1;
 	# if trimming is turned on
 	if ($fastqSettings{'trim'} eq 'on'){
 		print "Trimming files...\n";
