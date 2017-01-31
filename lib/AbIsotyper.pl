@@ -234,8 +234,10 @@ my $sampleReduce = 0;
             	($line2, $revBarcode) = constantRegionPrimer($line2, \%revPrimers, \%revRevCompPrimers, \$revPrimer_count, \%settings) if scalar(keys(%revPrimers)) > 0;
             	next if ! $line2;
 
-            	$barcodes{$fwdBarcode.'|'.$revBarcode}++;
-            	$line1 = type($line1, $line2, \%labels, \%counts);
+                $line1 = type($line1, $line2, \%labels, \%counts);
+
+                my ($barcodeSeqID) = $line1 =~ s/>//r;
+                $barcodes{$fwdBarcode.'|'.$revBarcode}{$barcodeSeqID} = 1;
 
             	if($line1){
 					my ($c) = $line1 =~ />(\w+?)\_/;
@@ -245,13 +247,14 @@ my $sampleReduce = 0;
             	}else{
             		die "ERROR: NOTHING ASSINGED TO A SEQUENCE";
                 }
+
             }else{
 				die "ERROR: Problem with lines in input file. ".
                     "Check formatting\n";
             }
         }
         my $sum = 0;
-        map {$sum += $barcodes{$_};} keys %barcodes;
+        map { $sum += scalar(keys( %{$barcodes{$_}} )) } keys %barcodes;
 
         print "> $file\tNumber of unique barcodes identified: ".scalar(keys(%barcodes))."\n";
         print "> $file\tNumber of total sequences with barcodes identified: $sum\n"; 
@@ -264,7 +267,11 @@ my $sampleReduce = 0;
     	}
     	
     	open my $TMP, '>', File::Spec->catfile($working_dir,'barcodeOutput',"$base\_barcode_output.txt") or die "Error opening file $!\n";
-    	map {print $TMP "$_\t$barcodes{$_}\n"} keys %barcodes;
+        foreach my $barcode (keys %barcodes){
+            foreach my $seqID (keys %{ $barcodes{$barcode} }){
+                print $TMP "$seqID\t$barcode\n";
+            }
+        }
     	close $TMP;
     	
         $pm->finish(0);
@@ -341,10 +348,10 @@ sub constantRegionPrimer{
     $regexRevComp = '('.$regexRevComp.')';
 
 	#if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
-    if ($line2 =~ /(?'barcode'(?:.{12}))(?:$regex)/i){
+    if ($line2 =~ /(?'barcode'(?:.{16}))(?:$regex)/i){
 		$$count++;
 		return ($line2,$+{barcode});
-	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{12}))/i){
+	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{16}))/i){
         $$count++;
         return ($line2,$+{barcode});
     }
