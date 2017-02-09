@@ -610,7 +610,7 @@ sub output{
 	my $db_name = $_[5];
 	my @mapping = (2,undef,undef,undef,1,0,4,6,5,7,9,8,10,11,12,13,14,15,16,17,18,19,20,21,162,23,24,25,26,27,28,29,30,31,32,33,34,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161);
 
-	print Dumper $settings;
+	#print Dumper $settings;
 	my $fileoutput = 1 if $settings->{'fileoutput'} eq 'y';
 
 	make_path(File::Spec->catdir($path,'lineageOutput',$outfile,'GROUPED_LINEAGES'));
@@ -626,7 +626,10 @@ sub output{
 		$dbh->do(qq{PRAGMA journal_mode = TRUNCATE;});
 		db::createSequenceTable($dbh);
 	}
-	
+
+	#open my $DB_file, '>', File::Spec->catfile($FindBin::Bin,'db',"$db_name.sql") or die "Error opening database script file $db_name \n$!\n";
+	#db::createSequenceTable($DB_file);
+
 	my %statements;
 	open my $SQL, "<". File::Spec->catfile($FindBin::Bin,'lib','sql.txt') or die "Error opening SQL statement file $!\n";
 	my $statement;
@@ -699,9 +702,10 @@ sub output{
 					$insert[$_] = "$data[$mapping[$_]]";
 				}
 			}
+			#print $DB_file "$sql (\"". join('","',@insert) ."\");\n" if $db_name;
 			$sth->execute(@insert) if $db_name;
 			$inserts++ if $db_name;
-			if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
+			#if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
 		}
 		close $COMP_INFO if $fileoutput;
 		
@@ -742,7 +746,7 @@ sub output{
 		}
 		print $COMP_ISOTYPE "$counts{$lineage}{'total'}\n";
 	}
-	
+	$dbh->commit if $db_name;
 	close $COMP_COUNTS;
 	close $COMP_ISOTYPE;
 
@@ -786,8 +790,9 @@ if($singletons){
 				}
 			}
 			$sth->execute(@insert) if $db_name;
+			#print $DB_file "$sql (\"". join('","',@insert) ."\");\n" if $db_name;
 			$inserts++ if $db_name;
-			if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
+			#if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
 
 			$pop_conn{'pop_count'}{$tmp_row[0]}++;
 			$pop_conn{'lineages'}{$tmp_row[0]."singletons"}++;
@@ -797,7 +802,9 @@ if($singletons){
 		close $COMP_SINGLETON_FASTA if $fileoutput;
 }
 	$dbh->commit if $db_name;
-	
+	#print "Creating database...\n";
+	#system("sqlite3 $path/db/$db_name.db < $path/db/$db_name.sql");
+	exit;
 	open my $COMP_POP_CONNEC, ">". "$path/lineageOutput/$outfile/POPULATION_CONNECTIONS.txt" or die "Error opening POPULATION_CONNECTIONS.txt file $!\n";
 	print $COMP_POP_CONNEC "Population Combination\tNumber of Lineages\tNumber of Sequences\n";
 	foreach my $combo (sort {length($a) <=> length($b)}keys %{$pop_conn{'lineages'}}){

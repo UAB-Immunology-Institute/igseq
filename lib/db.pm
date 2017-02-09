@@ -67,9 +67,9 @@ sub createSequenceTable {
 	
 	my $sql = "DROP TABLE IF EXISTS sequence";
 	$dbh->do($sql) or die $DBI::errstr;
-	
+
 	$sql = $statements{'createSequenceTable'};
-	
+
 	$dbh->do($sql) or die $DBI::errstr;
 	
 	return 0;
