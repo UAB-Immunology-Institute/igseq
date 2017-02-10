@@ -960,7 +960,7 @@ sub print_isotype_data{
 			my @percents;
 			foreach (sort keys %{$uniqIsotypes}){
 				my $total;
-				map {$total += $_} values $isotypes{$pop}{$size};
+				map {$total += $_} values %{$isotypes{$pop}{$size}};
 				my $value = $isotypes{$pop}{$size}{$_} ? ($isotypes{$pop}{$size}{$_} / $total * 100) : 0;
 				push @percents, $value;
 			}

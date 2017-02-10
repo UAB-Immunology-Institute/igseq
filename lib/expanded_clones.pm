@@ -26,7 +26,7 @@ sub lin_meausrement{
 	foreach my $pop (keys %{$data}){
 		my $previous = 0;
 		$cut_offs{$pop} = 0;
-		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys $data->{$pop}){
+		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys %{$data->{$pop}} ){
 			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) if !$previous;
 			last if( (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) - $previous >= $cutoff);
 			$cut_offs{$pop} += scalar(@{$data->{$pop}{$group}});
@@ -60,7 +60,7 @@ sub delta_measurement{
 	foreach my $pop (keys %{$data}){
 		my $previous = 0;
 		$cut_offs{$pop} = 0;
-		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys $data->{$pop}){
+		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys %{$data->{$pop}} ){
 			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) if !$previous;
 			last if( (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) - $previous >= $cutoff);
 			$cut_offs{$pop} += scalar(@{$data->{$pop}{$group}});
@@ -81,7 +81,7 @@ sub d_measurement{
 		my $size;
 		my $previous = 0;
 		my $seq_cut = int($cutoff * $total->{$pop});
-		foreach my $group (sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys $data->{$pop}){
+		foreach my $group (sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys %{$data->{$pop}} ){
 			$size += scalar(@{$data->{$pop}{$group}});
 			$previous = $size if ! $previous;
 			if ($size > $seq_cut){ last }
