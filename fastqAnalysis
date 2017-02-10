@@ -53,6 +53,7 @@ use Data::Dumper;
 use Cwd;
 use Carp;
 use File::Path qw(make_path remove_tree);
+use File::Spec;
 use POSIX;
 use Sys::CPU qw(cpu_count);
 use Parallel::ForkManager;
@@ -63,20 +64,20 @@ my @args = @ARGV;
 # set base directory structure;
 use FindBin;
 my $working_dir = $FindBin::RealBin;
-print "Using $working_dir/lib\n";
-use lib "$FindBin::RealBin/lib";
+print "Using ". File::Spec->catfile($working_dir,'lib') ."\n";
+use lib File::Spec->catfile($FindBin::RealBin,'lib');
 
 # print debug info to std out
 my $verbose = 0;
 
 # log file & run time initialization
 my $LOG_FILE = 'fastq_log.txt';
-open STDOUT, "| tee -a $working_dir/fastaOutput'/'$LOG_FILE" or croak "Tee stdout error";
+open STDOUT, "| tee -a ".File::Spec->catfile($working_dir,'fastaOutput',"$LOG_FILE") or croak "Tee stdout error";
 my $RUN_TIME = POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime);
 my $datetime = POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime);
 
 # Set initial data directory
-my $dir = "$working_dir/data_fastq";
+my $dir = File::Spec->catfile($working_dir,'data_fastq');
 
 # throw error if dir is not present
 die "Error: need directory input." if ! -d $dir;
@@ -108,7 +109,7 @@ my %fastqOptions = ('p' 	=>0,
 
 # read settings file for joining
 my %fastqSettings;
-open INF, "< $working_dir/config/fastq-join.inf" or die "Error: can not open config/fastq-join.inf\n";
+open INF, '<', File::Spec->catfile($working_dir,'config','fastq-join.inf') or die "Error: can not open fastq-join.inf\n";
 while(<INF>){
 	chomp;
 	my @line = split ":";
@@ -123,7 +124,7 @@ carp "Not all settings present in fastq-join.inf\n" if $sum != 5;
 
 # read settings file for subSample
 my %subSample_settings;
-open INF, "< $working_dir/config/fastaSubSample.inf" or die "Error: can not open config/fastaSubSample.inf\n$!\n";
+open INF, '<', File::Spec->catfile($working_dir,'config','fastaSubSample.inf') or die "Error: can not open fastaSubSample.inf\n$!\n";
 while(<INF>){
 	chop;
 	my @line = split ":";
@@ -133,12 +134,15 @@ close INF;
 
 
 # Set up output paths for all scripts
-make_path("$working_dir/fastaOutput/");
-make_path("$working_dir/fastQCoutput/");
-make_path("$working_dir/replicateMergeOutput/");
-make_path("$working_dir/fastqJoined/");
-make_path("$working_dir/trimmed/");
-make_path("$working_dir/joinedTrimmed/");
+make_path(File::Spec->catpath($working_dir,'fastaOutput'));
+make_path(File::Spec->catpath($working_dir,'fastQCoutput'));
+make_path(File::Spec->catpath($working_dir,'replicateMergeOutput'));
+make_path(File::Spec->catpath($working_dir,'fastqJoined'));
+make_path(File::Spec->catpath($working_dir,'trimmed'));
+make_path(File::Spec->catpath($working_dir,'joinedTrimmed'));
+make_path(File::Spec->catpath($working_dir,'barcodeOutput'));
+make_path(File::Spec->catpath($working_dir,'fastQCoutput','Filtered'));
+make_path(File::Spec->catpath($working_dir,'Archive'));
 
 # setup fork processes for up to # cores - 1
 my $pm = new Parallel::ForkManager(cpu_count()-1); 
@@ -168,16 +172,20 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 		print "Starting join...\n$files[$i]\t$files[$i+1]\n";
 
 		# setup command to execute
-		my $fastqJoin_cmd = $working_dir."/lib/fastq-join ".$working_dir."/data_fastq/$files[$i] ".$working_dir."/data_fastq/$files[$i+1] -o ".$working_dir."/fastqJoined/$out";
+		my $fastqJoin_cmd = File::Spec->catfile($working_dir,'lib','fastq-join ').
+							File::Spec->catfile($working_dir,'data_fastq',"$files[$i] ").
+							File::Spec->catfile($working_dir,'data_fastq',"$files[$i+1] -o ").
+							File::Spec->catfile($working_dir,'fastqJoined',"$out");
+
 		foreach my $key (keys %fastqSettings){
 			next if $key eq 'trim';
 			my ($base) = split '_', $out;
-			$fastqSettings{$key} = "$working_dir/fastqJoined/".$base.$fastqSettings{$key} if $key eq 'r';
+			$fastqSettings{$key} = File::Spec->catfile($working_dir,'fastqJoined',$base.$fastqSettings{$key}) if $key eq 'r';
 			$fastqJoin_cmd .= " -$key $fastqSettings{$key}";
 		}
 
 		print "\n$fastqJoin_cmd\n" if $verbose;
-		system("$fastqJoin_cmd");
+		system($fastqJoin_cmd);
 
 		# reset out to use as input for FastQC
 		$out =~ s/\%/join/;
@@ -185,29 +193,32 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 		# run FastQC on joined file
 		print "\nRunning FastQC on joined file...\n";
 		print "\n$working_dir/lib/FastQC/fastqc $working_dir/fastqJoined/$out --outdir=$working_dir/fastQCoutput/ --noextract\n" if $verbose;
-		system("$working_dir/lib/FastQC/fastqc $working_dir/fastqJoined/$out --outdir=$working_dir/fastQCoutput/ --noextract");
+		my $fastqcCMD = File::Spec->catfile($working_dir,'lib','FastQC','fastqc ').
+						File::Spec->catfile($working_dir,'fastqJoined',"$out --outdir=").
+						File::Spec->catfile($working_dir,'fastQCoutput',' --noextract');
+		system($fastqcCMD);
 		
 		$pm->finish(0);
 		
 	}
 	$pm->wait_all_children;
 	
-	
 	print "> script finished: ".POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime)."\n";
 
 	# copy files over to joinedTrimmed folder for next step if trimming is on
-	system("cp $working_dir/fastqJoined/*join.fastq $working_dir/joinedTrimmed") if $fastqSettings{'trim'} eq 'on';
-	print "cp $working_dir/fastqJoined/*join.fastq $working_dir/joinedTrimmed\n" if $verbose && $fastqSettings{'trim'} eq 'on';
+	my $cpCMD = File::Spec->catfile($working_dir,'fastqJoined','*join.fastq ',$working_dir,'joinedTrimmed');
+	system("cp $cpCMD") if $fastqSettings{'trim'} eq 'on';
+	print "cp $cpCMD\n" if $verbose && $fastqSettings{'trim'} eq 'on';
 
 	# get list of joined files
-	opendir my $DIR, "$working_dir/fastqJoined" or die "Error opening directory $!\n";
+	opendir my $DIR, File::Spec->catfile($working_dir,'fastqJoined') or die "Error opening fastqJoined directory\n$!\n";
 	my @joinedFiles = grep {/\_join\.fastq/} readdir $DIR;
 	closedir $DIR;
 
 	# hash of seq IDs that were joined
 	my %joined;
 	foreach my $joinFile (@joinedFiles){
-		open my $INF, "$working_dir/fastqJoined/$joinFile" or die "Error opening file $!\n";
+		open my $INF, '<', File::Spec->catfile($working_dir,'fastqJoined',$joinFile) or die "Error opening $joinFile\n$!\n";
 		while (<$INF>){
 			chomp;
 			if ($_ =~ /^\@.*?:\d+?:\d+?-/){
@@ -219,7 +230,8 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 	}
 my %pairNames;
 map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
-$verbose = 1;
+
+#$verbose = 1;
 	# if trimming is turned on
 	if ($fastqSettings{'trim'} eq 'on'){
 		print "Trimming files...\n";
@@ -232,15 +244,19 @@ $verbose = 1;
 			die "Error, Sample names are too similar.\n" if scalar(@pairFiles) > 2;
 			
 			my $out = $pair."\.fastq";
-			
+
 			for (my $i = 0; $i <= $#pairFiles; $i++){	
 				if ($pairFiles[$i] =~ /(?:\.gz)|(?:\.tgz)$/){
-					my ($fn) = $pairFiles[$i] =~ s/\.(t)?gz//r;
-					print "gunzip -c $working_dir/data_fastq/$pairFiles[$i] > $working_dir/trimmed/$pairFiles[$i]\n" if $verbose;
-					system("gunzip -c $working_dir/data_fastq/$pairFiles[$i] > $working_dir/trimmed/$pairFiles[$i]");
+					my ($fn) = $pairFiles[$i] =~ s|\.(t)?gz||r;
+					my $gunzipCMD = File::Spec->catfile($working_dir,'data_fastq',"$pairFiles[$i] > ").
+									File::Spec->catfile($working_dir,'trimmed',$pairFiles[$i]);
+					print "gunzip -c $gunzipCMD" if $verbose;
+					system("gunzip -c $gunzipCMD");
 				}else{
-					print "cp $working_dir/data_fastq/$pairFiles[$i] $working_dir/trimmed/$pairFiles[$i]\n" if $verbose;
-					system("cp $working_dir/data_fastq/$pairFiles[$i] $working_dir/trimmed/$pairFiles[$i]");
+					$cpCMD = File::Spec->catfile($working_dir,'data_fastq',$pairFiles[$i],' ').
+							 File::Spec->catfile($working_dir,'trimmed',$pairFiles[$i]);
+					print "cp cpCMD\n" if $verbose;
+					system("cp cpCMD");
 				}
 				print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35\n" if $verbose;
 				#system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
@@ -248,7 +264,7 @@ $verbose = 1;
 				$out =~ s/(\.fastq)/_trim$1/g;
 				system("cp $working_dir/trimmed/$pairFiles[$i] $working_dir/trimmed/$out");
 			}
-			
+
 			# execute trimming command
 			#print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
 			
@@ -277,7 +293,6 @@ $verbose = 1;
 		my %trimmed;
 #print Dumper %baseFileNames;
 #print Dumper @trimmedFiles;
-
 
 		foreach my $base (keys %baseFileNames){
 			my ($file) = grep {/$base/} @joinedFiles;
@@ -342,18 +357,27 @@ print "##################################################\n";
 print "       Replicate Merge & Quality Filtering\n";
 print "##################################################\n";
 
-system("perl $working_dir/lib/replicateMerge.pl $working_dir/joinedTrimmed/") if $fastqSettings{'trim'} eq 'on';
-system("perl $working_dir/lib/replicateMerge.pl $working_dir/fastqJoined/") if $fastqSettings{'trim'} eq 'off';
 
-opendir my $DIRH, "$working_dir/replicateMergeOutput/" or die "error opening directory $!\n"; 
+my $repmergeCMD = File::Spec->catfile($working_dir,'lib','replicateMerge.pl ');
+$repmergeCMD .= File::Spec->catfile($working_dir,'fastqJoined') if $fastqSettings{'trim'} eq 'off';
+$repmergeCMD .= File::Spec->catfile($working_dir,'joinedTrimmed') if $fastqSettings{'trim'} eq 'on';
+
+system("perl $repmergeCMD");
+
+opendir my $DIRH, File::Spec->catfile($working_dir,'replicateMergeOutput') or die "error opening directory $!\n"; 
 @files = grep {/\.fastq/} readdir $DIRH;
 my @fasta_files = @files;
-map { $_ = "$working_dir/replicateMergeOutput/".$_ } @files;
-make_path("$working_dir/fastQCoutput/Filtered");
-system("$working_dir/lib/FastQC/fastqc ".join( " ", @files)." --outdir=$working_dir/fastQCoutput/Filtered --noextract");
+map { $_ = File::Spec->catfile($working_dir,'replicateMergeOutput',$_) } @files;
+
+my $fastqcCMD = File::Spec->catfile($working_dir,'lib','FastQC','fastqc '.join(" ", @files)).
+				File::Spec->catfile(" --outdir=$working_dir",'fastQCoutput','Filtered --noextract');
+system($fastqcCMD);
+
 foreach my $file (@fasta_files){
 	my ($out) = $file =~ /(.*)\.fastq/;
-    system("perl $working_dir/lib/fastQ2A.pl $working_dir/replicateMergeOutput/$out.fastq");
+	my $fastq2aCMD = File::Spec->catfile($working_dir,'lib','fastQ2A.pl ').
+					 File::Spec->catfile($working_dir,'replicateMergeOutput',"$out.fastq");
+    system("perl $fastq2aCMD");
 }
 
 
@@ -364,7 +388,10 @@ if($subSample_settings{run} eq 'y'){
 	
 
 	if(defined $subSample_settings{size}){
-		system("perl $working_dir/lib/fastaSubSample.pl $working_dir/fastaOutput/ -size:$subSample_settings{size} -seed:$subSample_settings{seed}");
+		my $fastasubsampleCMD = File::Spec->catfile($working_dir,'lib','fastaSubSample.pl ').
+								File::Spec->catfile($working_dir,'fastaOutput ').
+								"-size:$subSample_settings{size} -seed:$subSample_settings{seed}";
+		system("perl $fastasubsampleCMD");
 	}else{
 		croak "Error: Problem with sub-sampling settings. \n";
 	}
@@ -373,8 +400,10 @@ if($subSample_settings{run} eq 'y'){
 	print "##################################################\n";
 	print "                     AbIsotype\n";
 	print "##################################################\n";
-
-	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaSubSample_Out/ -diff:2");
+	
+	my $abisotyperCMD = File::Spec->catfile($working_dir,'lib','AbIsotyper.pl ').
+						File::Spec->catfile($working_dir,'fastaSubSample_Out -diff:2');
+	system("perl $abisotyperCMD");
 	
 	
 	
@@ -383,9 +412,13 @@ if($subSample_settings{run} eq 'y'){
 	print   "##################################################\n";
 	
 	print "> Archiving files...\n";
-
-    mkdir("$working_dir/IgSeq/Archive");
-    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz joinedTrimmed/ trimmed/ fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ fastaSubSample_Out/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+	my $archCMD = File::Spec->catfile($working_dir,'Archive',"fastq_analysis_$datetime.tgz ").
+				  "joinedTrimmed trimmed fastqJoined fastaOutput AbIsotyper_Out fastQCoutput replicateMergeOutput fastaSubSample_Out ".
+				  File::Spec->catfile('config','AbIsotyper_labels.inf ').
+				  File::Spec->catfile('config','fastaSubSample.inf ').
+				  File::Spec->catfile('config','fastq-join.inf ').
+				  File::Spec->catfile('config','replicateConfig.inf');
+    system("tar -C $working_dir -zcf $archCMD");
 
 }else{
 	
@@ -393,8 +426,9 @@ if($subSample_settings{run} eq 'y'){
 	print "                     AbIsotype\n";
 	print "##################################################\n";
 	
-	system("perl $working_dir/lib/AbIsotyper.pl $working_dir/fastaOutput/ -diff:2");
-	
+	my $abisotyperCMD = File::Spec->catfile($working_dir,'lib','AbIsotyper.pl ').
+						File::Spec->catfile($working_dir,'fastaOutput -diff:2');
+	system("perl $abisotyperCMD");
 	
 	print "\n##################################################\n";
 	print   "                     Archiving\n";
@@ -402,8 +436,14 @@ if($subSample_settings{run} eq 'y'){
 	
 	print "> Archiving files...\n";
 
-    mkdir("$working_dir/Archive");
-    system("tar -C $working_dir -zcf $working_dir/Archive/fastq_analysis_$datetime.tgz joinedTrimmed/ trimmed/ fastqJoined/ fastaOutput/ AbIsotyper_Out/ fastQCoutput/ replicateMergeOutput/ config/AbIsotyper_labels.inf config/fastaSubSample.inf config/fastq-join.inf config/replicateConfig.inf");
+	my $archCMD = File::Spec->catfile($working_dir,'Archive',"fastq_analysis_$datetime.tgz ").
+				  "joinedTrimmed trimmed fastqJoined fastaOutput AbIsotyper_Out fastQCoutput replicateMergeOutput fastaSubSample_Out ".
+				  File::Spec->catfile('config','AbIsotyper_labels.inf ').
+				  File::Spec->catfile('config','fastaSubSample.inf ').
+				  File::Spec->catfile('config','fastq-join.inf ').
+				  File::Spec->catfile('config','replicateConfig.inf');
+    system("tar -C $working_dir -zcf $archCMD");    
+    
 }
 
 	print "> All files archived to fastq_analysis_$datetime.tgz\n";

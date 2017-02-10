@@ -54,7 +54,7 @@ print "WARNING: This will remove all data from all output folders except Archive
     "Proceed (y|n)? ";
 if(<STDIN> =~ 'y'){
     print "Removing files...\n";
-    remove_tree("$base".'joinedTrimmed', "$base".'subsetMerged', "$base".'trimmed', "$base".'AbIsotyper_Out', "$base".'fastaOutput', "$base".'fastaSubSample_Out', "$base".'fastQCoutput', "$base".'fastqJoined', "$base".'lineageOutput', "$base".'mergeOutput', "$base".'replicateMergeOutput', "$base".'subSample_Out', "$base".'Summary', "$base".'CDR3_output', "$base".'postVquestFiltered', {keep_root => 1});
+    remove_tree("$base".'joinedTrimmed', "$base".'subsetMerged', "$base".'trimmed', "$base".'AbIsotyper_Out', "$base".'fastaOutput', "$base".'fastaSubSample_Out', "$base".'fastQCoutput', "$base".'fastqJoined', "$base".'lineageOutput', "$base".'mergeOutput', "$base".'replicateMergeOutput', "$base".'subSample_Out', "$base".'Summary', "$base".'CDR3_output', "$base".'postVquestFiltered', "$base".'barcodeOutput', {keep_root => 1});
 }
 
 

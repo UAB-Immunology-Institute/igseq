@@ -102,7 +102,6 @@ our $VERSION = '2012.11.7.1';
     use Devel::Symdump;
     use List::MoreUtils qw(indexes);
     use DBD::SQLite;
-    use Algorithm::Cluster qw(treecluster);
     use circos_config;
     use expanded_clones;
     

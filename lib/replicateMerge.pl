@@ -119,7 +119,7 @@ if (scalar(keys %replicates) > 1){
         my @file_set;
         foreach my $replicate ( @{$replicates{$set}} ){
             my ($file) = grep {/$replicate\_/i} @files;
-            $file = "$dir".$file;
+            $file = File::Spec->catfile($dir,$file);
             push @file_set, $file;
         }
 
@@ -134,7 +134,7 @@ if (scalar(keys %replicates) > 1){
     }
     $pm->wait_all_children;
 }else{
-    map { $_ = $dir.$_ } @files;
+    map { $_ = File::Spec->catfile($dir,$_) } @files;
     my $pm = new Parallel::ForkManager(cpu_count()-1);
 #    my $pm = new Parallel::ForkManager(1);
     foreach my $file (@files){

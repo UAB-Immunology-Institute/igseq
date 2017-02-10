@@ -54,6 +54,8 @@ use Text::LevenshteinXS qw(distance);
 use Carp;
 use File::Basename;
 use File::Path;
+use File::Path qw(make_path);
+use File::Spec;
 use POSIX;
 use Data::Dumper;
 use Parallel::ForkManager;
@@ -69,7 +71,9 @@ use 5.012;
 ##           Variables            ##
 ####################################
 my $working_dir = $FindBin::RealBin;
-$working_dir =~ s/\/lib//;
+my ($vol,$dir,$file) = File::Spec->splitpath($working_dir);
+$working_dir = $dir;
+
 my %data;
 my %labels;
 my $difference;
@@ -107,12 +111,9 @@ my $sampleReduce = 0;
     my $numOfJunk = grep{ /^\./} @tmpfiles;
     splice @tmpfiles, 0, $numOfJunk;
     unshift @tmpfiles, '';
-    push @files, split ' ', join " $inputDir", @tmpfiles;
-	@files = grep{ /\.fasta$/} @files;
-
-    closedir DIR;
+    
+    map {push @files, File::Spec->catfile($inputDir,$_)} grep{/\.fasta$/}@tmpfiles;
 	my $base = basename($inputDir);
-	
 	
 # time stamp for running script and log file
 
@@ -121,24 +122,47 @@ my $sampleReduce = 0;
     my $RUN_TIME = POSIX::strftime("%Y-%m-%d, %H:%M:%S", localtime);
 
 # grab primers from file
-    open my $settingsINF, "<". "$working_dir/config/primers.inf" or die "Error opening settings file $working_dir/config/primers.inf $!\n";
+    open my $settingsINF, "<". File::Spec->catfile($working_dir,'config','primers.inf') or die "Error opening settings file primers.inf\n$!\n";
     my %settings;
-    my %primers;
-    my $sequenceFlag=0;
+    my %fwdPrimers;
+    my %fwdRevCompPrimers;
+    my %revPrimers;
+    my %revRevCompPrimers;
+    my $fwdSection=0;
+    my $revSection=0;
     while (<$settingsINF>){
     	my $line = $_;
 		chomp $line;
-    	if ($line =~ /^#/){
-    		$sequenceFlag = $sequenceFlag ? 0 : 1; # if	 sequence flag is on turn it off, if it is off turn it on
+    	if ($line =~ /^# Forward/){
+    		$fwdSection = $fwdSection ? 0 : 1; # if	 fwdSection flag is on turn it off, if it is off turn it on
     		next;
-    	}
-    	if ($sequenceFlag){
+    	}elsif($line =~ /^# Reverse/){
+    		$revSection = $revSection ? 0 : 1; # if	 revSection flag is on turn it off, if it is off turn it on
+    		next;
+		}
+    	
+    	if ($fwdSection){
     		if ($line =~ /R|Y|M|K|S|W|H|B|V|D|N/){
 				$line = replaceOdd($line);
     		}
-    		$primers{$line}=1;
+    		$fwdPrimers{$line}=1;
+    		my $reverse = reverse $line;
+			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
+			$fwdRevCompPrimers{$reverse}=1;
     		next;
     	}
+    	
+    	if ($revSection){
+    		if ($line =~ /R|Y|M|K|S|W|H|B|V|D|N/){
+				$line = replaceOdd($line);
+    		}
+    		$revPrimers{$line}=1;
+    		my $reverse = reverse $line;
+			$reverse =~ tr/ACGTacgt()/TGCAtgca)(/;
+			$revRevCompPrimers{$reverse}=1;
+    		next;
+    	}
+    	
 		my ($data) = split('#', $line);
 		my ($parameter, $value) = split ':', $data;
 		$settings{$parameter} = $value;
@@ -146,21 +170,21 @@ my $sampleReduce = 0;
 
 # output directory
 
-    $outDir = "$working_dir/AbIsotyper\_Out/$base\_".POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime);    
-    mkpath($outDir) or die "Error Making output directory $!\n";
+    $outDir = File::Spec->catfile($working_dir,'AbIsotyper_Out',"$base\_".POSIX::strftime("%Y_%m_%d_%H_%M_%S",localtime));    
+    make_path($outDir) or die "Error Making output directory $!\n";
     
 # append to log file whatever shows up on terminal (errors only show up on STDERR on terminal)
 
-    open STDOUT, "| tee -a $outDir'/'$LOG_FILE" or croak "Tee stdout error";
+    open STDOUT, "| tee -a ".File::Spec->catfile($outDir,$LOG_FILE) or croak "Tee stdout error";
     print "*********************************************\n";
     print "> script start: $RUN_TIME\n";
 
 
 # read labels into %labels variable
 
-    open INFSETTINGS, "< $working_dir/config/AbIsotyper_labels.inf" or croak "ERROR: can't open AbIsotyper_labels.inf\nMake sure file is in same directory as AbIsotyper.pl $!\n";
-    while (<INFSETTINGS>){
-        chop;
+    open my $INFSETTINGS, '<', File::Spec->catfile($working_dir,'config','AbIsotyper_labels.inf') or croak "ERROR: can't open AbIsotyper_labels.inf\n$!\n";
+    while (<$INFSETTINGS>){
+        chomp;
         my @row = split ':';
         if(exists $labels{$row[1]}){
             print "Warning possible identical sequences in label file.\n";
@@ -171,30 +195,33 @@ my $sampleReduce = 0;
     }
     croak "ERROR: Problem with labels file (AbIsotyper_labels.inf). Check usage.\n" if scalar keys %labels == 0;
 
-    close INFSETTINGS;
-
+    close $INFSETTINGS;
 
 # read and process data 
-
 	print "> Processing files...\n";
 	my $pm = new Parallel::ForkManager(cpu_count()-1);
-	my $primer_count=0;
+	my $fwdPrimer_count=0;
+	my $revPrimer_count=0;
     foreach my $file(@files){                                                   # for each file
     	my $pid = $pm->start and next;                                          # fork a new process
     	
     	srand($seed) if $seed;                                                  # set rng seed
-        open INF, "<$file" or croak "ERROR: can not open input file $file\n";
+        open my $INF, '<', $file or croak "ERROR: can not open input file $file\n$!\n";
 		
 		$file =~ s/.*\/(.*)/$1/;
-		open OPF, ">> $outDir/$file" or croak "Error opening: $outDir/$file\n$!\n";
+		open my $OPF, '>>', File::Spec->catfile($outDir,$file) or croak "Error opening $file\n$!\n";
+
+        my ($base) = $file =~ s/\..*//r;
 
         my $i=0;
         my %counts;
         my $flag;
         
-        while (<INF>){
+        my %barcodes;
+        
+        while (<$INF>){
         	my $line1 = $_;
-        	my $line2 = <INF>;
+        	my $line2 = <$INF>;
         	
 			chop($line1);
         	chop($line2);
@@ -202,33 +229,51 @@ my $sampleReduce = 0;
         	$i++;
         	
             if($line1 =~ /^\>/){
-            	my $barcode;
-            	($line2, $barcode) = removePrimer($line2, \%primers, \$primer_count);
+            	my ($fwdBarcode, $revBarcode) = ('','');
+            	($line2, $fwdBarcode) = removePrimer($line2, \%fwdPrimers, \%fwdRevCompPrimers, \$fwdPrimer_count, \%settings) if scalar(keys(%fwdPrimers)) > 0;
+            	($line2, $revBarcode) = constantRegionPrimer($line2, \%revPrimers, \%revRevCompPrimers, \$revPrimer_count, \%settings) if scalar(keys(%revPrimers)) > 0;
             	next if ! $line2;
-            	$line1 = type($line1, $line2, \%labels, \%counts);
-# /(CAGGT(G|T)CAGCTGGTGCAG|(G|C)AGGTCCAGCTGGTACAG|CA(G|A)ATGCAGCTGGTGCAG|CAGGTCACCTTGA(G|A)GGAG|GGTCCCTGAGACTCTCCTGT|ACCCTGTCCCTCACCTGC|GCAGCTGGTGCAGTCTGGAG|CAGGACTGGTGAAGCCCTCG|CAGGTGCAGCTGGTGCAA)/;
+
+                $line1 = type($line1, $line2, \%labels, \%counts);
+
+                my ($barcodeSeqID) = $line1 =~ s/>//r;
+                $barcodes{$fwdBarcode.'|'.$revBarcode}{$barcodeSeqID} = 1;
 
             	if($line1){
 					my ($c) = $line1 =~ />(\w+?)\_/;
 					$counts{$c}++;
-            		print OPF $line1."\n";
-            		print OPF lc $line2."\n";
+            		print $OPF $line1."\n";
+            		print $OPF lc $line2."\n";
             	}else{
             		die "ERROR: NOTHING ASSINGED TO A SEQUENCE";
                 }
+
             }else{
 				die "ERROR: Problem with lines in input file. ".
                     "Check formatting\n";
             }
         }
-        print "> $file\tNumber of sequences with primers identified: $primer_count\n";
-        close INF;
-        close OPF;
+        my $sum = 0;
+        map { $sum += scalar(keys( %{$barcodes{$_}} )) } keys %barcodes;
+
+        print "> $file\tNumber of unique barcodes identified: ".scalar(keys(%barcodes))."\n";
+        print "> $file\tNumber of total sequences with barcodes identified: $sum\n"; 
+        close $INF;
+        close $OPF;
         
         print "> Isotype proportions for $file\n";
         foreach my $count(keys %counts){
         	print ">\t$count: $counts{$count}\n";
     	}
+    	
+    	open my $TMP, '>', File::Spec->catfile($working_dir,'barcodeOutput',"$base\_barcode_output.txt") or die "Error opening file $!\n";
+        foreach my $barcode (keys %barcodes){
+            foreach my $seqID (keys %{ $barcodes{$barcode} }){
+                print $TMP "$seqID\t$barcode\n";
+            }
+        }
+    	close $TMP;
+    	
         $pm->finish(0);
     }
     $pm->wait_all_children;
@@ -269,31 +314,49 @@ sub replaceOdd{
 sub removePrimer{
 	my $line2 = shift;
 	my $primers = shift;
+    my $revCompPrimers = shift;
 	my $count = shift;
+	my $settings = shift;
 	
-	my $regex = join '|', keys %{$primers};
+	my $regex = join ')|(', keys %{$primers};
+	$regex = '('.$regex.')';
 
+    my $regexRevComp = join ')|(', keys %{$revCompPrimers};
+    $regexRevComp = '('.$regexRevComp.')';
 
-	if ($line2 =~ s/(.*?)($regex)//i){
-		
+	if ($line2 =~ s/(?'barcode'(?:.{6}))($regex)//i){
 		$$count++;
-		return ($line2,$1);
-	}
-=pod
-	else{
-		foreach my $primer (keys %{$primers}){
-			my $length = length($primer) + 4;
-			my $linequery = substr($line2, 0, $length);
-			my $diff = distance($primer, $linequery);
-			if ($diff <= 5){
-				$$count++;
-				return $line2;
-			}
-		}
-	}
-=cut
+		return ($line2,$+{barcode});
+	}elsif($line2 =~ s/($regexRevComp)(?'barcode'(?:.{6}))//i){
+        $$count++;
+        return ($line2,$+{barcode});
+    }
 	return 0;
 }
+
+sub constantRegionPrimer{
+	my $line2 = shift;
+	my $constantRegionPrimers = shift;
+    my $revCompPrimers = shift;
+	my $count = shift;
+	my $settings = shift;
+	
+	my $regex = join ')|(', keys %{$constantRegionPrimers};
+	$regex = '('.$regex.')';
+
+    my $regexRevComp = join ')|(', keys %{$revCompPrimers};
+    $regexRevComp = '('.$regexRevComp.')';
+
+	#if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
+    if ($line2 =~ /(?'barcode'(?:.{6}))(?:$regex)/i){
+		$$count++;
+		return ($line2,$+{barcode});
+	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{6}))/i){
+        $$count++;
+        return ($line2,$+{barcode});
+    }
+}
+
 sub type{ #determines isotype for a sequence
 	my $line1  = shift;
 	my $line2  = shift;
@@ -359,85 +422,12 @@ sub type{ #determines isotype for a sequence
 	return 0;
 }
 
-# sub type{ #determines isotype for a sequence
-# 	my $line1  = shift;
-# 	my $line2  = shift;
-# 	my $labels = shift;
-# 	my $counts = shift;
-# 	$line1 =~ s/(.*?:.*?:).*?-/$1/;
-# 	my $verbose = 0;
-# 	print "Seq:$line2\n" if $verbose;
-# 	my $newlabel;
-# 	my $dist;
-# 	my @matches;
-# 	
-# 	foreach my $label(keys %{$labels}){
-# 		print "Label:$label\n" if $verbose;
-# 		if($line2 =~ /$label/){                                                # if label match is found directly
-# 			print "MATCH: $labels{$label}\n" if $verbose;
-# 			my $matchtmp = $line1;
-# 			my @tmpSplit = split ('', $line1);
-# 			splice(@tmpSplit, 0, 1, ('>', uc"$labels{$label}", '_'));
-# 			$line1 = join( '',  @tmpSplit);
-# 
-# 			$counts->{uc"$labels->{$label}"}++;
-# 			return ($line1);                                                    # add label, go to next seq
-# 		}else{                                                                  # otherwise see if theres a match within the cut off range
-# 			if(length($line2)<= length($label)){next;}
-# 			my @tmpSplit  = split( '', $line2);									
-# 			my $sequence = join( '', splice( @tmpSplit, -(length($label))));	
-# 
-# 			my $tmpdist = distance($sequence, $label);
-# 			print "STRCMP: $tmpdist\n" if $verbose;
-# 			if($tmpdist <= $difference){                   #levenshtein distance matched within cut off add label
-# 				@tmpSplit = split ('', $line1);
-# 				splice(@tmpSplit, 0, 1, ('>', uc"$labels->{$label}", '_'));
-# 				$line1 = join ('', @tmpSplit);
-# 				return ($line1);
-# 				
-# 				
-# # 				if (!defined($dist) || $dist > $tmpdist){
-# # 					$newlabel = uc $labels->{$label};
-# # 					$counts->{uc"$labels->{$label}"}++ if !defined($dist);
-# # 					
-# # 					$dist = $tmpdist;
-# # 				}elsif($dist == $tmpdist){
-# # 					if (uc $newlabel ne uc $labels->{$label}){
-# # 						print "Warning ambigous isotype found!\n $line1 \n $newlabel \t $labels->{$label}\n";
-# # 					}
-# # 				}
-# 			}
-# 		}
-# #		my $hold = <STDIN> if $verbose;
-# 	}
-# 
-# 
-# # 	if ($newlabel){
-# # 		my @tmpSplit = split ('', $line1);
-# # 		splice(@tmpSplit, 0, 1, ('>', $newlabel, '_'));
-# # 		$line1 = join ('', @tmpSplit);
-# # 		return ($line1);                                              # label added go to next seq
-# # 	}
-# 	
-#   # otherwise no match and not a truncated seq, add U instead       
-# 
-# 	my @tmpSplit = split ('', $line1);
-# 	splice(@tmpSplit, 0, 1, ('>', 'U', '_'));
-# 	$line1 = join( '',  @tmpSplit);   
-# 
-# 	$counts->{U}++;
-# 	return ($line1);
-# 	
-# }
-# 
-
 
 sub truncated{ #similar to above algorithm except truncating the sequence labels incase of early sequencing termination
     my $seq         = shift;
     my $labels      = shift;
     my $largest     = shift;
     my $difference  = shift;
-#    my $counts      = shift;
 
     my %truncatedLabels;
     
@@ -455,7 +445,6 @@ sub truncated{ #similar to above algorithm except truncating the sequence labels
             splice(@tmpSplit, 0, 1, ('>', uc"$truncatedLabels{$label}", '_'));
             $seq->[0] = join( '',  @tmpSplit);
 
-            #$counts->{uc $truncatedLabels{$label} }++;
             return $seq->[0];
         }else{
 			my @tmpSplit  = split( '', $tmpSeq);
@@ -466,7 +455,6 @@ sub truncated{ #similar to above algorithm except truncating the sequence labels
 				splice(@tmpSplit, 0, 1, ('>', uc"$truncatedLabels{$label}", '_'));
 				$seq->[0] = join( '',  @tmpSplit);
 
-				#$counts->{uc $truncatedLabels{$label} }++;
 				return $seq->[0];
 			}
         }
