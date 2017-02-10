@@ -1,0 +1,9 @@
+cutoff:2 # number of mismatches
+barcodeLength:12
+# Forward
+# Forward
+# Reverse
+GAGGCTCAGCGGGAAGACCTTG
+GGGAAGACCGATGGGCCCTTGGTGG
+GGGAATTCTCACAGGAGACGA
+# Reverse

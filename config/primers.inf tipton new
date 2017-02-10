@@ -1,0 +1,47 @@
+cutoff:2 # number of mismatches
+barcodeLength:12
+# Forward
+atggactggacctggaggat
+ctggagcatccttttcttgg
+ctcttcttggtggcagcag
+tggactggacctggagaatc
+tcttctgcttgctggctgta
+atggactggatttggaggat
+ctggaggttcctctttgtgg
+atggactgcacctggaggat
+gctcctgctgctgaccat
+gctacacactcctgctgctg
+cacgctcctgctactgactg
+gagctgggttttccttgttg
+tgggactgagctggattttc
+gagctggattttccttgctg
+ctgggttttccttgttgct
+gagctggctttttcttgtgg
+gggttttcctcgttgctctt
+gggttttcctcgttgctctt
+ttggactgagctgggttttc
+ctgtgctgggttttccttgt
+ggcttagctgggttttcctt
+gagctgggttttccttgttg
+gagctgggttttccttgttg
+tgtggttcttcctcctcctg
+cctgtggttctttctcctcct
+ctgtggttcttcctcctgct
+tgtggttcttcctcctcctg
+gaagcacctgtggtttttcc
+ctgtggttcttcctcctgct
+ggttcttccttctcctggtg
+tgtggttcttcctcctcctg
+ggggcctctccacttaaacc
+ccctcctcctggctgttc
+tctgtctccttcctcatcttcc
+atggactggacctggaggat
+# Forward
+# Reverse
+CAGATGGGAACGTGGTCATC
+AAGATGGGAACGTGGTCATC
+AGAGCACCTCCGAGAGCAC
+AAGAGCACCTCTGGGGGC
+CGTCTCCTGTGAGAATTCCC
+CTGCTGCAAAAACATTCCCT
+# Reverse

@@ -324,10 +324,10 @@ sub removePrimer{
     my $regexRevComp = join ')|(', keys %{$revCompPrimers};
     $regexRevComp = '('.$regexRevComp.')';
 
-	if ($line2 =~ s/(?'barcode'(?:.{8}|.{4}))($regex)//i){
+	if ($line2 =~ s/(?'barcode'(?:.{6}))($regex)//i){
 		$$count++;
 		return ($line2,$+{barcode});
-	}elsif($line2 =~ s/($regexRevComp)(?'barcode'(?:.{8}|.{4}))//i){
+	}elsif($line2 =~ s/($regexRevComp)(?'barcode'(?:.{6}))//i){
         $$count++;
         return ($line2,$+{barcode});
     }
@@ -348,10 +348,10 @@ sub constantRegionPrimer{
     $regexRevComp = '('.$regexRevComp.')';
 
 	#if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
-    if ($line2 =~ /(?'barcode'(?:.{16}))(?:$regex)/i){
+    if ($line2 =~ /(?'barcode'(?:.{6}))(?:$regex)/i){
 		$$count++;
 		return ($line2,$+{barcode});
-	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{16}))/i){
+	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{6}))/i){
         $$count++;
         return ($line2,$+{barcode});
     }
