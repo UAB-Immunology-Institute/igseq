@@ -803,7 +803,7 @@ if($singletons){
 	$dbh->commit if $db_name;
 	#print "Creating database...\n";
 	#system("sqlite3 $path/db/$db_name.db < $path/db/$db_name.sql");
-	exit;
+
 	open my $COMP_POP_CONNEC, ">". "$path/lineageOutput/$outfile/POPULATION_CONNECTIONS.txt" or die "Error opening POPULATION_CONNECTIONS.txt file $!\n";
 	print $COMP_POP_CONNEC "Population Combination\tNumber of Lineages\tNumber of Sequences\n";
 	foreach my $combo (sort {length($a) <=> length($b)}keys %{$pop_conn{'lineages'}}){
