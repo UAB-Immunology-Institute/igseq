@@ -621,8 +621,8 @@ sub output{
 		print "DB connected, generating output...\n";
 		$dbh->do(qq{PRAGMA synchronous=OFF;});
 		$dbh->do(qq{PRAGMA temp_store=MEMORY;});
-		$dbh->do(qq{PRAGMA cache_size=800000;});
-		$dbh->do(qq{PRAGMA journal_mode = TRUNCATE;});
+		$dbh->do(qq{PRAGMA cache_size=-12000;});
+		$dbh->do(qq{PRAGMA journal_mode=TRUNCATE;});
 		db::createSequenceTable($dbh);
 	}
 
