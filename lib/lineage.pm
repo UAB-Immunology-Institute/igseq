@@ -350,6 +350,7 @@ foreach my $vGene (sort keys %{$data}){ # A1.
 								my $mut;
 								my @tmpMut;
 								my $v_gene;
+								
 								foreach my $tmpnode (@{$results->{$cluster}}){
 									my $node = $data->{$vGene}{$dGene}{$jGene}{$length}{$jgroup}[$tmpnode];
 									my @tmpline = split '\t', $infileTie[$node];
@@ -357,7 +358,7 @@ foreach my $vGene (sort keys %{$data}){ # A1.
 									chomp($infileTie[$node]);
 									$infileTie[$node] .= "\t$jgroup";
 									push @{$total_results->{'clusters'}{$total_results->{'numCC'}}}, $node;
-								
+
 									#print $fh_info "$numCC\t$infileTie[$node]\n";
 								
 									my @seqID = $tmpline[1] =~ /(.*?):.*:(\d+:\d+)$/;
@@ -745,15 +746,16 @@ sub output{
 		}
 		print $COMP_ISOTYPE "$counts{$lineage}{'total'}\n";
 	}
+
 	$dbh->commit if $db_name;
 	close $COMP_COUNTS;
 	close $COMP_ISOTYPE;
 
 if($singletons){
-		open my $COMP_SINGLETON_INFO,  ">". "$path/lineageOutput/$outfile/SINGLETONS_INFO.txt"  or die "Error opening singleton file $!\n" if $fileoutput;
-		open my $COMP_SINGLETON_FASTA, ">". "$path/lineageOutput/$outfile/SINGLETONS_FASTA.txt" or die "Error opening singleton file $!\n" if $fileoutput;
+		open my $COMP_SINGLETON_INFO,  ">". "$path/lineageOutput/$outfile/SINGLETONS_INFO.txt"  or die "Error opening singleton file $!\n" ;
+		open my $COMP_SINGLETON_FASTA, ">". "$path/lineageOutput/$outfile/SINGLETONS_FASTA.txt" or die "Error opening singleton file $!\n" ;
 	
-		print $COMP_SINGLETON_INFO "SingletonID\tPopulation\t$results->{'header'}" if $fileoutput;
+		print $COMP_SINGLETON_INFO "SingletonID\tPopulation\t$results->{'header'}";
 
 		my $s_id = 0;
 
@@ -761,9 +763,9 @@ if($singletons){
 			$s_id++;
 			my @tmp_row = split '\t', $data->[$singleton];
 			my $seq = $tmp_row[9] =~ s/\.//gr;
-			print $COMP_SINGLETON_FASTA ">$tmp_row[0]|$s_id.1|$tmp_row[1]\n" if $fileoutput;
-			print $COMP_SINGLETON_FASTA $seq."\n" if $fileoutput;
-			print $COMP_SINGLETON_INFO "$s_id.1\t$data->[$singleton]\n" if $fileoutput;
+			print $COMP_SINGLETON_FASTA ">$tmp_row[0]|$s_id.1|$tmp_row[1]\n";
+			print $COMP_SINGLETON_FASTA $seq."\n";
+			print $COMP_SINGLETON_INFO "$s_id.1\t$data->[$singleton]\n";
 		
 			push @{$pop_conn{'lin_by_pop'}{$tmp_row[0]}{"$s_id.1"}}, $singleton;
 			
@@ -797,8 +799,8 @@ if($singletons){
 			$pop_conn{'lineages'}{$tmp_row[0]."singletons"}++;
 			$pop_conn{'seq'}{$tmp_row[0].".singletons"}++;
 		}
-		close $COMP_SINGLETON_INFO if $fileoutput;
-		close $COMP_SINGLETON_FASTA if $fileoutput;
+		close $COMP_SINGLETON_INFO;
+		close $COMP_SINGLETON_FASTA;
 }
 	$dbh->commit if $db_name;
 	#print "Creating database...\n";
@@ -907,8 +909,9 @@ sub print_isotype_data{
 
 	open my $CIRCOS, ">". "$path/lineageOutput/$outfile/circos/circos_lineage_isotype_data.txt" or die "Error opening file $path/lineageOutput/$outfile/circos/circos_lineage_isotype_data.txt $!\n";
 	foreach my $lineage(keys %{$pop_conn->{'circos_boundries'}}){
-
 		foreach my $pop (keys %{$pop_conn->{'circos_boundries'}{$lineage}}){
+
+# if the lineage is in the highlighted portion of the plot		
 			if ($pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} > $cutoffs->{$pop}){
 				my %vars;
 				map{$vars{$_}=0}keys %{$uniqIsotypes};
@@ -922,17 +925,17 @@ sub print_isotype_data{
 						$sum++;
 					}
 				}
-				
+
 				print $CIRCOS "$pop $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'start'} $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} ";
 				my @percents;
 				map {push @percents, ( $sum ? ($vars{$_}/$sum * 100) : 0);} sort keys %{$uniqIsotypes};
-
 				print $CIRCOS join ',', @percents;
 				print $CIRCOS " #$lineage\n";
-
+# else the lineage is not in the highlighted portion of the plot		
 			}else{
 				my $size = $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} - $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'start'};
 				
+			#if it's not a singleton
 				if ($size > 1){
 					foreach my $seq (@{$results->{'clusters'}{$lineage}}){
 						my @row = split '\t', $data->[$seq];
@@ -942,12 +945,17 @@ sub print_isotype_data{
 							$isotypes{$pop}{$size}{$isotype}++;
 						}
 					}
+			#if it is a singleton
 				}else{
-					my ($index) = $lineage =~ /^s(.*)/;
+					my ($index) = $lineage =~ /^(\d+)\.1/;
+#				print Dumper $lineage;
 					my @row = split '\t', $data->[$results->{'singletons'}[$index-1]];
 					my ($isotype) = ($row[1] =~ /^(.+?)\_/) ? $1 : 'U';
+					
+#				print "$row[1]\t$isotype\n";
 					$isotypes{$pop}{$size}{$isotype}++;
 				}
+#				print Dumper %isotypes;
  			}
 		}
 		print "\n" if $verbose;
@@ -958,12 +966,14 @@ sub print_isotype_data{
 		foreach my $size (keys %{$isotypes{$pop}}){
 			print $CIRCOS "$pop $pop_conn->{'group_boundries'}{$pop}{$size}{'start'} $pop_conn->{'group_boundries'}{$pop}{$size}{'stop'} ";
 			my @percents;
-			foreach (sort keys %{$uniqIsotypes}){
+			foreach my $iso (sort keys %{$uniqIsotypes}){
 				my $total;
 				map {$total += $_} values %{$isotypes{$pop}{$size}};
-				my $value = $isotypes{$pop}{$size}{$_} ? ($isotypes{$pop}{$size}{$_} / $total * 100) : 0;
+				#print "$pop\t$size\t$iso\t$total\n";
+				my $value = $isotypes{$pop}{$size}{$iso} ? ($isotypes{$pop}{$size}{$iso} / $total * 100) : 0;
 				push @percents, $value;
 			}
+			print Dumper ($pop, $size, @percents);
 			print $CIRCOS join ',', @percents;
 			print $CIRCOS " #size:$size\n";
 		}
