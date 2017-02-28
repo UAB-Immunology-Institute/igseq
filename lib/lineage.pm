@@ -973,7 +973,7 @@ sub print_isotype_data{
 				my $value = $isotypes{$pop}{$size}{$iso} ? ($isotypes{$pop}{$size}{$iso} / $total * 100) : 0;
 				push @percents, $value;
 			}
-			print Dumper ($pop, $size, @percents);
+			#print Dumper ($pop, $size, @percents);
 			print $CIRCOS join ',', @percents;
 			print $CIRCOS " #size:$size\n";
 		}
