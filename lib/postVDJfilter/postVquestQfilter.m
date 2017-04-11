@@ -72,7 +72,14 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
 		tmp = regexp(vquest{k,2},'^(\w+\_)','tokens');
 		a(k,1) = tmp{1};
 		
-        b{k,1} =  regexprep(vquest{k,7},'\.','');
+        seq = '';
+        if length(vquest{k,7}) == 0
+           seq = vquest{k,8};
+        else
+            seq = vquest{k,7};
+        end
+        
+        b{k,1} =  regexprep(seq,'\.','');
         vquest{k,2} = regexprep(vquest{k,2},'^\w+\_','');
         vquest{k,2} = regexprep(vquest{k,2},'000000000-','');
     end
@@ -114,13 +121,12 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
     
     [~,ia,ib] = intersect({fastq.Header},vquestProductive(:,2));
     
-    parfor j = 1:nv %change to nv
+    for j = 1:nv %change to nv
         [fwdscore(j),fwdalign{j}] = nwalign(vquestProductive{ib(j),end},fastq(ia(j)).Sequence,'GAPOPEN', 20, 'EXTENDGAP', 2);
         [revscore(j),revalign{j}] = nwalign(vquestProductive{ib(j),end},fastq(ia(j)).RevComp,'GAPOPEN', 20, 'EXTENDGAP', 2);
-        
     end
     
-    
+    disp('Adjusting quality scores to alignment')
     [score,dmax] = max([fwdscore revscore],[],2);
     alignments(dmax == 1) = fwdalign(dmax == 1);
     alignments(dmax == 2) = revalign(dmax == 2);
@@ -141,6 +147,9 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
     
     for j = 1:nv %change to nv
         a = vquestProductive{ib(j),7};
+        if length(a) == 0
+            a = vquestProductive{ib(j),8};
+        end
         b = QualityNoGap{j};
         
         n = length(a);
@@ -157,8 +166,12 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
     
     QualityScoreAlign = cell2mat(x);
     QualityScoreAlign(QualityScoreAlign == -1) = NaN;
+    
+    
     baseviz_r2(QualityScoreAlign);
+     print(strcat(name,'qualityScoreDistribution_not_filtered.eps'),'-depsc');
     baseqc_r2(QualityScoreAlign);
+     print(strcat(name,'qualityHistogram_not_filtered.eps'),'-depsc');
     
     ikeep = qFilter( QualityScoreAlign, name, start1,stop1,q1,start2,size(QualityScoreAlign,2),q2);
     n = length(ikeep);
