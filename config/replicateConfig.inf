@@ -2,18 +2,6 @@ run:y
 
 lengthThreshold:200
 
-%q1
-basepairThreshold:0
-qualityThreshold:10
-%
-%q2
-basepairThreshold:5
-qualityThreshold:20
-%
-%q3
-basepairThreshold:15
-qualityThreshold:30
-%
 
 # leave as 1 to not merge replicates
 numReplicatesSeqPresentIn:1

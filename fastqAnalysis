@@ -237,7 +237,7 @@ map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 		print "Trimming files...\n";
 		
 		foreach my $pair(keys %pairNames){
-			#my $pid = $pm->start and next;
+			my $pid = $pm->start and next;
 			
 			my @pairFiles = grep {/$pair/} @files;
 			print "$pair\n";
@@ -259,21 +259,21 @@ map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 					system("cp cpCMD");
 				}
 				print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35\n" if $verbose;
-				#system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
+				system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
 				my $out = $pairFiles[$i];
 				$out =~ s/(\.fastq)/_trim$1/g;
 				system("cp $working_dir/trimmed/$pairFiles[$i] $working_dir/trimmed/$out");
 			}
 
 			# execute trimming command
-			#print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
+			print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
 			
 			
 			my ($trim_out) = $out =~ s/\.fastq/_trim\.fastq/r;
 			
-			#$pm->finish(0);	
+			$pm->finish(0);	
 		}
-		#$pm->wait_all_children;
+		$pm->wait_all_children;
 
 		print "\nConcatenating trimmed and joined sequences\n" if $verbose;
 		opendir my $DIR, "$working_dir/joinedTrimmed" or die "Error opening Directory $!\n";
