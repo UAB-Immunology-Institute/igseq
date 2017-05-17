@@ -12,17 +12,22 @@ use Data::Dumper;
 use DBI;
 use DBD::SQLite;
 use File::Path qw(make_path);
+use FindBin;
+use File::Spec;
 
-use expanded_clones;
+my $path = $FindBin::RealBin;
+use lib 'lib';
+
+#use expanded_clones;
 
 my @files = @ARGV;
 
 usage("Error with file $files[0] $!\n") if ! -f $files[0];
 #usage("Error with directory $files[1] $!\n") if ! -d $files[1];
 
-
 my %settings;
-open my $input_settings, '<', "circos.inf";
+
+open my $input_settings, '<', "$path/../config/circos.inf" or die "Error $!\n";
 while(<$input_settings>){
     chomp;
     my $tmp_line = $_;
@@ -31,6 +36,7 @@ while(<$input_settings>){
     my @line = split( ":", $tmp_line);
     $settings{$line[0]} = $line[1];
 }
+close $input_settings;
 
 my $dbh = DBI->connect("DBI:SQLite:dbname=$files[0]", "", "", {RaiseError=>1, AutoCommit =>0}) or die $DBI::errstr;
 
@@ -55,7 +61,7 @@ foreach my $seqData (@{$dbSeq}){
 }
 
 	 my ($cutoff_type, $cutoff_value) = split '\|', $settings{"circos_cutoffs"};
-	 my $cutoffs = expanded_clones::expanded($cutoff_type, \%data, \%total, $cutoff_value);
+	 my $cutoffs = expanded($cutoff_type, \%data, \%total, $cutoff_value);
 	
 	my $lin_cutoffs;
 	#$lin_cutoffs = expanded_clones::expanded('d', \%{$pop_conn{'lin_by_pop'}}, \%{$pop_conn{'pop_count'}}, 60);
@@ -700,6 +706,92 @@ sub print_lineage_bands{
 
 	close $CIRCOS;
 	return $pop_conn;
+}
+
+sub expanded{
+	my $type = shift;
+	
+	return lin_measurement(shift, shift, shift) if lc($type) eq "lin";
+	return seq_measurement(shift, shift, shift) if lc($type) eq "seq";
+	return delta_measurement(shift, shift, shift) if lc($type) eq "delta";
+	return d_measurement(shift, shift, shift) if lc($type) eq "d";
+	
+}
+
+sub lin_meausrement{
+	my $data = shift;
+	my $total = shift;
+	my $cutoff = shift;
+	
+	my %cut_offs;
+	
+	foreach my $pop (keys %{$data}){
+		my $previous = 0;
+		$cut_offs{$pop} = 0;
+		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys %{$data->{$pop}} ){
+			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) if !$previous;
+			last if( (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) - $previous >= $cutoff);
+			$cut_offs{$pop} += scalar(@{$data->{$pop}{$group}});
+			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100);
+		} 
+	}
+	return \%cut_offs;
+}
+
+sub seq_measurement{
+	my $data = shift;
+	my $total = shift;
+	my $cutoff = shift;
+
+
+	my %cut_offs;
+	
+	foreach my $pop (keys %{$total}){
+		$cut_offs{$pop} = $total->{$pop} - $cutoff;
+	}
+	return \%cut_offs;
+}
+
+sub delta_measurement{
+	my $data = shift;
+	my $total = shift;
+	my $cutoff = shift;
+
+	my %cut_offs;
+
+	foreach my $pop (keys %{$data}){
+		my $previous = 0;
+		$cut_offs{$pop} = 0;
+		foreach my $group ( sort { scalar(@{$data->{$pop}{$a}}) <=> scalar(@{$data->{$pop}{$b}}) } keys %{$data->{$pop}} ){
+			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) if !$previous;
+			last if( (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100) - $previous >= $cutoff);
+			$cut_offs{$pop} += scalar(@{$data->{$pop}{$group}});
+			$previous = (scalar(@{$data->{$pop}{$group}}) / $total->{$pop} * 100);
+		} 
+	}
+	return \%cut_offs;
+}
+
+sub d_measurement{
+	my $data = shift;
+	my $total = shift;
+	my $cutoff = (shift) / 100;
+	my %cut_offs;
+
+	foreach my $pop (keys %{$total}){
+		my $size;
+		my $previous = 0;
+		my $seq_cut = int($cutoff * $total->{$pop});
+		foreach my $group (sort { scalar(@{$data->{$pop}{$a}{'v_mutation'}}) <=> scalar(@{$data->{$pop}{$b}{'v_mutation'}}) } keys %{$data->{$pop}} ){
+			$size += scalar(@{$data->{$pop}{$group}{'v_mutation'}});
+			$previous = $size if ! $previous;
+			if ($size > $seq_cut){ last }
+			if ($size == $seq_cut){ $previous = $size; last;}
+			$previous = $size;
+		}
+		$cut_offs{$pop} = $previous;
+	}
+	return \%cut_offs;
 }
 
 sub usage{

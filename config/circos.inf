@@ -32,3 +32,6 @@ connections_track:n
 
 #v gene mutation track
 v_gene_mut_track:y
+
+#cut off values for highlights (delta|0.1 d|80 d|20 seq|2000 lin|50)
+circos_cutoffs:d|80
