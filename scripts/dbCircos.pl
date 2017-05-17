@@ -18,12 +18,9 @@ use File::Spec;
 my $path = $FindBin::RealBin;
 use lib 'lib';
 
-#use expanded_clones;
-
 my @files = @ARGV;
 
 usage("Error with file $files[0] $!\n") if ! -f $files[0];
-#usage("Error with directory $files[1] $!\n") if ! -d $files[1];
 
 my %settings;
 
@@ -40,7 +37,6 @@ close $input_settings;
 
 my $dbh = DBI->connect("DBI:SQLite:dbname=$files[0]", "", "", {RaiseError=>1, AutoCommit =>0}) or die $DBI::errstr;
 
-#my $query = "select lineageID, isotype, count(*) from sequence group by lineageID, isotype";
 my $query = "select population, lineageID, isotype, V_Nucleotides, V_Mutations from sequence";
 
 my $dbSeq = $dbh->selectall_arrayref($query);
@@ -64,7 +60,7 @@ foreach my $seqData (@{$dbSeq}){
 	 my $cutoffs = expanded($cutoff_type, \%data, \%total, $cutoff_value);
 	
 	my $lin_cutoffs;
-	#$lin_cutoffs = expanded_clones::expanded('d', \%{$pop_conn{'lin_by_pop'}}, \%{$pop_conn{'pop_count'}}, 60);
+
 	make_path('dbCircosOutput');
 	print_config(\%settings, "dbCircosOutput", $cutoffs, $lin_cutoffs, \%uniq_iso, \%total);
 
@@ -79,8 +75,6 @@ foreach my $seqData (@{$dbSeq}){
 	my $pop_conn = print_lineage_bands(\%data, 'dbCircosOutput');
 	print_connections_data($pop_conn, 'dbCircosOutput');
 	print_lineage_links($pop_conn, \%data, 'dbCircosOutput');
-	#print_variability_data(\%pop_conn, $results, $data, $outfile, 'd', $path);
-	#print_variability_data(\%pop_conn, $results, $data, $outfile, 'j', $path);
 	print_isotype_data($pop_conn, \%data, 'dbCircosOutput', $cutoffs, \%uniq_iso);
 	print_mutation_data($pop_conn, \%data, 'dbCircosOutput');
 
@@ -102,34 +96,6 @@ sub print_config {
     print_ticks(    	$output_dir, $settings->{'tick_spacing'}, $settings->{'tick_size'}, $settings->{'tick_label_size'}, $settings->{'tick_label_spacing'});
 }
 
-# sub print_variability_data{
-# 	my $pop_conn = shift;
-# 	my $results = shift;
-# 	my $data = shift;
-# 	my $outfile = shift;
-# 	my $v_d_j = shift;
-# 	my $path = shift;
-	
-# 	open my $CIRCOS, ">". "$path/lineageOutput/$outfile/circos/circos_$v_d_j\_variability_data.txt" or die "Error opening file circos_$v_d_j\_variablility_data.txt $!\n";
-# 	foreach my $lineage(keys %{$pop_conn->{'circos_boundries'}}){
-# 		foreach my $pop (keys %{$pop_conn->{'circos_boundries'}{$lineage}}){
-# 			my %vars;
-# 			if ($lineage !~ /^s/){
-# 				foreach my $seq (@{$results->{'clusters'}{$lineage}}){
-# 					my @row = split '\t', $data->[$seq];
-# 					$vars{$row[4]}=1 if $v_d_j eq 'v';
-# 					$vars{$row[6]}=1 if $v_d_j eq 'd';
-# 					$vars{$row[5]}=1 if $v_d_j eq 'j';
-# 				}
-# 				print $CIRCOS "$pop $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'start'} $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} ". scalar(keys %vars) ." #$lineage\n";
-# 			}else{
-# 				print $CIRCOS "$pop $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'start'} $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} 1 #$lineage\n";
-# 			}
-# 		}
-# 	}
-# 	close $CIRCOS;
-# 	return 1;
-# }
 
 sub print_mutation_data{
 	my $pop_conn = shift;
@@ -194,14 +160,6 @@ sub print_isotype_data{
 				}
 
 				my $sum = scalar @{ $pop_conn->{'lin_by_pop'}{$pop}{$lineage}{'v_mutation'} };
-				# foreach my $seq (@{$results->{'clusters'}{$lineage}}){
-				# 	my @row = split '\t', $data->[$seq];
-				# 	if ($row[0] eq $pop){
-				# 		my ($isotype) = ($row[1] =~ /^(.+?)\_/) ? $1 : 'U';
-				# 		$vars{$isotype}++;
-				# 		$sum++;
-				# 	}
-				# }
 
 				print $CIRCOS "$pop $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'start'} $pop_conn->{'circos_boundries'}{$lineage}{$pop}{'stop'} ";
 				my @percents;
@@ -216,27 +174,6 @@ sub print_isotype_data{
 				foreach my $isotype (%{$pop_conn->{'lin_by_pop'}{$pop}{$lineage}{'isotype'}}){
 					$isotypes{$pop}{$size}{$isotype} += $pop_conn->{'lin_by_pop'}{$pop}{$lineage}{'isotype'}{$isotype} ? $pop_conn->{'lin_by_pop'}{$pop}{$lineage}{'isotype'}{$isotype} : 0;
 				}
-			#if it's not a singleton
-# 				if ($size > 1){
-# 					foreach my $seq (@{$results->{'clusters'}{$lineage}}){
-# 						my @row = split '\t', $data->[$seq];
-						
-# 						if ($row[0] eq $pop){
-# 							my ($isotype) = ($row[1] =~ /^(.+?)\_/) ? $1 : 'U';
-# 							$isotypes{$pop}{$size}{$isotype}++;
-# 						}
-# 					}
-# 			#if it is a singleton
-# 				}else{
-# 					my ($index) = $lineage =~ /^(\d+)\.1/;
-# #				print Dumper $lineage;
-# 					my @row = split '\t', $data->[$results->{'singletons'}[$index-1]];
-# 					my ($isotype) = ($row[1] =~ /^(.+?)\_/) ? $1 : 'U';
-					
-# #				print "$row[1]\t$isotype\n";
-# 					$isotypes{$pop}{$size}{$isotype}++;
-# 				}
-#				print Dumper %isotypes;
  			}
 		}
 		print "\n" if $verbose;
@@ -250,11 +187,11 @@ sub print_isotype_data{
 			foreach my $iso (sort keys %{$uniqIsotypes}){
 				my $total;
 				map {$total += $_} values %{$isotypes{$pop}{$size}};
-				#print "$pop\t$size\t$iso\t$total\n";
+
 				my $value = $isotypes{$pop}{$size}{$iso} ? ($isotypes{$pop}{$size}{$iso} / $total * 100) : 0;
 				push @percents, $value;
 			}
-			#print Dumper ($pop, $size, @percents);
+
 			print $CIRCOS join ',', @percents;
 			print $CIRCOS " #size:$size\n";
 		}
@@ -267,7 +204,6 @@ sub print_isotype_data{
 
 sub print_lineage_links{
 	my $pop_conn = shift;
-	#my $results = shift;
 	my $data = shift;
 	my $outfile = shift;
 	
@@ -356,37 +292,6 @@ sub print_plots {
     map {$colorstring .= $colors[$counter].","; $counter++; $counter = 0 if $counter == 6;} sort keys %{$uniq_iso};
     $colorstring =~ s/,$//;
     my $output =    "<plots>\n";
-    	#variability track
-                    # "<plot>\n".
-                    # "show = no\n".
-                    # "type = heatmap\n".
-                    # "stroke_thickness=1\n".
-                    # "stroke_color = black\n".
-                    # "file = circos_v_variability_data.txt\n".
-                    # "color = ylorrd-9-seq\n".
-                    # "r0=.975r\n".
-                    # "r1=.975r+25p\n".
-                    # "</plot>\n".
-                    # "<plot>\n".
-                    # "show = no\n".
-                    # "type = heatmap\n".
-                    # "stroke_thickness=1\n".
-                    # "stroke_color = black\n".
-                    # "file = circos_d_variability_data.txt\n".
-                    # "color = ylorrd-9-seq\n".
-                    # "r0=.95r\n".
-                    # "r1 = .95r+25p\n".
-                    # "</plot>\n".
-                    # "<plot>\n".
-                    # "show= no\n".
-                    # "type = heatmap\n".
-                    # "stroke_thickness=1\n".
-                    # "stroke_color = black\n".
-                    # "file = circos_j_variability_data.txt\n".
-                    # "color = ylorrd-9-seq\n".
-                    # "r0=.925r\n".
-                    # "r1=.925r+25p\n".
-                    # "</plot>\n";
 
     #isotype track
         $output .=  "<plot>\n";
