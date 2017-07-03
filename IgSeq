@@ -169,15 +169,15 @@ print   "##################################################\n";
 	}
 	
 	foreach my $pair (keys %{$qfilterSettings{'filePairings'}}){
-		my $vquestFile = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/2_IMGT-gapped-nt-sequences_$qfilterSettings{'filePairings'}{$pair}->[0].txt";
-		my $vquest4file = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/4_IMGT-gapped-AA-sequences_$qfilterSettings{'filePairings'}{$pair}->[0].txt";
-		my $vquest8file = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/8_V-REGION-nt-mutation-statistics_$qfilterSettings{'filePairings'}{$pair}->[0].txt";
+		my $vquestFile = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/2_IMGT-gapped-nt-sequences*.txt";
+		my $vquest4file = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/4_IMGT-gapped-AA-sequences*.txt";
+		my $vquest8file = "$inputDir/$qfilterSettings{'filePairings'}{$pair}->[0]/8_V-REGION-nt-mutation-statistics*.txt";
 		my $fastqFile = "$fastqDir/$qfilterSettings{'filePairings'}{$pair}->[1].fastq";
 		
 		my $cmd = "matlab -nosplash -nodesktop -r \"path(path,\'$path/lib/postVDJfilter\'); ".
 					"postVquestQfilter $fastqFile $vquestFile $vquest4file $vquest8file $qualitySettings $qfilterSettings{'filePairings'}{$pair}->[0]\"";
-		system($cmd);
 		print $cmd."\n";
+		system($cmd);
 	}
 	
 	
