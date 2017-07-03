@@ -54,6 +54,6 @@ function m = igseq_mutavg(db, t)
     
     for i = 1:npop
         k = find(strcmp(a(:, 1), upop{i}));
-        upop{i}
-        mean(frq(k))
+        m(i,1) = upop(i);
+        m(i,2) = num2cell(mean(frq(k)));
     end
