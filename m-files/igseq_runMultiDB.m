@@ -18,6 +18,17 @@ totalIso = {};
      tempOut(:,2) = pop;
      tempOut(:,1) = {list(j).name};
      
+     %vj plot
+     igseq_vjplot(db,'sequence')
+     print(strcat(db,'_vjplot_sequence.eps'),'-depsc');
+     
+     %clonality plots
+%      for i = 1:size(pop)
+%          n = pop{i};
+%          igseq_clonalityplot(db,n,n,'b',0,[])
+%          print(strcat(n,'_clonality.eps'),'-depsc');
+%      end
+     
      %get number of lineages
      tmp = igseq_nlin(db);
      tempOut(:,3) = tmp(:,2);

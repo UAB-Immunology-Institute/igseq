@@ -98,7 +98,7 @@ function maxp = igseq_vjplot(db, type, varargin)
         colormap(cmap);
         set(gca, 'visible', 'off', 'ydir', 'reverse');
         axis off;
-        
+        print(strcat(a.population{f},'_vjplot_sequence.eps'),'-depsc');
     end
         
         
