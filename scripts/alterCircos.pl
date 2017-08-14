@@ -13,20 +13,64 @@ use DBI;
 use DBD::SQLite;
 
 my @files = @ARGV;
+my $verbose = 1;
 
-usage("Error with file $files[0] $!\n") if ! -f $files[0];
-usage("Error with directory $files[1] $!\n") if ! -d $files[1];
+print Dumper @files if $verbose;
+
+
+my $pop = 'AN1';
+
+usage("Error, can not read file $files[0] $!\n") if ! -f $files[0];
+usage("Error, can not read directory $files[1] $!\n") if ! -d $files[1];
+usage("Error, no isotype information supplied $!\n") if ! $files[2];
+
+$pop = $files[2];
 
 my $dbh = DBI->connect("DBI:SQLite:dbname=$files[0]", "", "", {RaiseError=>1, AutoCommit =>0}) or die $DBI::errstr;
 
-my $query = "select lineageID, isotype, count(*) from sequence group by lineageID, isotype";
+my $query = "select lineageID, population, count(*) from sequence where population == ? group by lineageID, population";
+print Dumper $query if $verbose;
 
-my $dbSeq = $dbh->selectall_hashref($query, ['lineageID', 'isotype'] );
-print Dumper $dbSeq;
+print "Querying Database...\n";
+my $sth = $dbh->prepare($query);
+$sth->execute($pop);
+my $dbSeq = $sth->fetchall_hashref(['lineageID', 'population'] );
+print Dumper scalar keys %{$dbSeq} if $verbose;
 
+open my $INF, "<". "$files[1]/circos_lineage_links.txt" or die "Error $!\n";
+my @links = <$INF>;
+close $INF;
+chomp @links;
+
+mkdir "circos_output";
+open my $OPF, ">". "circos_output/circos_lineage_links_OUTPUT.txt" or die "Error $!\n";
+print "Filtering Circos data...\n";
+my @matchingSeqGroups;
+LINEAGE:
+	foreach my $lineageID (keys %{$dbSeq}){
+		#next if scalar(keys $dbSeq->{$lineageID}) < 2;
+		foreach my $population (keys %{$dbSeq->{$lineageID}}){
+			#next if ! grep {/E/} keys %{$dbSeq->{$lineageID}{$population}};
+			push @matchingSeqGroups, [$lineageID, $population];
+		}
+	}
+
+foreach my $group (@matchingSeqGroups){
+	my @matches = grep {/$group->[1].*?#$group->[0]$/} @links;
+	if (@matches){
+		print $OPF join "\n", @matches;
+		print $OPF "\n";
+	}
+}
+
+close $OPF;
+$dbh->disconnect;
+
+print "Done.\n";
 
 sub usage{
 	my $message = shift;
+	print "Usage:\nperl alterCircos <SQLite database file> <Directory of circos files> <Isotype>\n";
 	die "$message";
 }
 
