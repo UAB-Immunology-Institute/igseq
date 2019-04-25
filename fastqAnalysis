@@ -84,7 +84,7 @@ die "Error: need directory input." if ! -d $dir;
 
 # get list of fastq files in data_fastq directory
 opendir DIR, $dir or die "Error: can not open data directory $dir: $!\n";
-my @files = grep{ /\.fastq(?:\.gz)?$/} readdir DIR;
+my @files = grep{ /(?:(\.fastq|\.gz))$/} sort readdir DIR;
 closedir DIR;
 
 # throw error if no files found
@@ -212,7 +212,7 @@ my $pm = new Parallel::ForkManager(cpu_count()-1);
 
 	# get list of joined files
 	opendir my $DIR, File::Spec->catfile($working_dir,'fastqJoined') or die "Error opening fastqJoined directory\n$!\n";
-	my @joinedFiles = grep {/\_join\.fastq/} readdir $DIR;
+	my @joinedFiles = grep {/\_join\.fastq/} sort readdir $DIR;
 	closedir $DIR;
 
 	# hash of seq IDs that were joined
@@ -277,7 +277,7 @@ map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 
 		print "\nConcatenating trimmed and joined sequences\n" if $verbose;
 		opendir my $DIR, "$working_dir/joinedTrimmed" or die "Error opening Directory $!\n";
-		@joinedFiles = grep {/\_join\.fastq$/} readdir $DIR;
+		@joinedFiles = grep {/\_join\.fastq$/} sort readdir $DIR;
 		closedir $DIR;
 	#print '@joinedFiles' ."\n";
 	#print Dumper @joinedFiles;
@@ -287,7 +287,7 @@ map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 # 			print "Joined file: $file\n" if $verbose;
 		my %baseFileNames;
 		opendir $DIR, "$working_dir/trimmed" or die "Error opening directory $!\n";
-		my @trimmedFiles = grep {/\_R.*\_trim\.fastq/} readdir $DIR;
+		my @trimmedFiles = grep {/\_R.*\_trim\.fastq/} sort readdir $DIR;
 		map {my ($name) = $_ =~ /(.*?)\_R.*\_trim\.fastq/; $baseFileNames{$name}=1;} @trimmedFiles;
 		closedir $DIR;		
 		my %trimmed;
@@ -365,7 +365,7 @@ $repmergeCMD .= File::Spec->catfile($working_dir,'joinedTrimmed') if $fastqSetti
 system("perl $repmergeCMD");
 
 opendir my $DIRH, File::Spec->catfile($working_dir,'replicateMergeOutput') or die "error opening directory $!\n"; 
-@files = grep {/\.fastq/} readdir $DIRH;
+@files = grep {/\.fastq/} sort readdir $DIRH;
 my @fasta_files = @files;
 map { $_ = File::Spec->catfile($working_dir,'replicateMergeOutput',$_) } @files;
 
