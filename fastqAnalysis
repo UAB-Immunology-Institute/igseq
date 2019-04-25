@@ -258,15 +258,15 @@ map {$_ =~ /(.*?)_R[12]/; $pairNames{$1}=1; } @files;
 					print "cp cpCMD\n" if $verbose;
 					system("cp cpCMD");
 				}
-				print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35\n" if $verbose;
-				system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
+				#print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35\n" if $verbose;
+				#system("perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[$i] -sc=33 -hq=35");
 				my $out = $pairFiles[$i];
 				$out =~ s/(\.fastq)/_trim$1/g;
 				system("cp $working_dir/trimmed/$pairFiles[$i] $working_dir/trimmed/$out");
 			}
 
 			# execute trimming command
-			print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
+			#print "perl $working_dir/lib/condetri_v2.2.pl -fastq1=$working_dir/trimmed/$pairFiles[0] -fastq1=$working_dir/trimmed/$pairFiles[1] -sc=33\n" if $verbose;
 			
 			
 			my ($trim_out) = $out =~ s/\.fastq/_trim\.fastq/r;
