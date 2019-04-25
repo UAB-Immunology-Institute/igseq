@@ -134,15 +134,15 @@ close INF;
 
 
 # Set up output paths for all scripts
-make_path(File::Spec->catpath($working_dir,'fastaOutput'));
-make_path(File::Spec->catpath($working_dir,'fastQCoutput'));
-make_path(File::Spec->catpath($working_dir,'replicateMergeOutput'));
-make_path(File::Spec->catpath($working_dir,'fastqJoined'));
-make_path(File::Spec->catpath($working_dir,'trimmed'));
-make_path(File::Spec->catpath($working_dir,'joinedTrimmed'));
-make_path(File::Spec->catpath($working_dir,'barcodeOutput'));
-make_path(File::Spec->catpath($working_dir,'fastQCoutput','Filtered'));
-make_path(File::Spec->catpath($working_dir,'Archive'));
+make_path(File::Spec->catdir($working_dir,'fastaOutput'));
+make_path(File::Spec->catdir($working_dir,'fastQCoutput'));
+make_path(File::Spec->catdir($working_dir,'replicateMergeOutput'));
+make_path(File::Spec->catdir($working_dir,'fastqJoined'));
+make_path(File::Spec->catdir($working_dir,'trimmed'));
+make_path(File::Spec->catdir($working_dir,'joinedTrimmed'));
+make_path(File::Spec->catdir($working_dir,'barcodeOutput'));
+make_path(File::Spec->catdir($working_dir,'fastQCoutput','Filtered'));
+make_path(File::Spec->catdir($working_dir,'Archive'));
 
 # setup fork processes for up to # cores - 1
 my $pm = new Parallel::ForkManager(cpu_count()-1); 
