@@ -96,7 +96,7 @@ my $sampleReduce = 0;
 		$seed = $1		   if  $arg =~ /\-seed:(\d+)/;
 		$percent_diff = $1 if ($arg =~ /\-percent:(\d+)/ && !$cutoff);
 	}
-	
+	#$difference =6;
 	if($cutoff || $percent_diff){$sampleReduce = 1;}
 	
     my @files;
@@ -242,7 +242,7 @@ my $sampleReduce = 0;
             	if($line1){
 					my ($c) = $line1 =~ />(\w+?)\_/;
 					$counts{$c}++;
-            		print $OPF $line1."\n";
+            		print $OPF $line1."\_$fwdBarcode|$revBarcode\n";
             		print $OPF lc $line2."\n";
             	}else{
             		die "ERROR: NOTHING ASSINGED TO A SEQUENCE";
@@ -253,6 +253,8 @@ my $sampleReduce = 0;
                     "Check formatting\n";
             }
         }
+
+
         my $sum = 0;
         map { $sum += scalar(keys( %{$barcodes{$_}} )) } keys %barcodes;
 
@@ -324,7 +326,7 @@ sub removePrimer{
     my $regexRevComp = join ')|(', keys %{$revCompPrimers};
     $regexRevComp = '('.$regexRevComp.')';
 
-	if ($line2 =~ s/(?'barcode'(?:.{6}))($regex)//i){
+	if ($line2 =~ s/(?'barcode'(?:.{$settings->{'barcodeLength'}}))($regex)//i){
 		$$count++;
 		return ($line2,$+{barcode});
 	}elsif($line2 =~ s/($regexRevComp)(?'barcode'(?:.{6}))//i){
@@ -348,7 +350,7 @@ sub constantRegionPrimer{
     $regexRevComp = '('.$regexRevComp.')';
 
 	#if ($line2 =~ /(?:$regex)(?'barcode'(?:.{8}|.{4}))/i){
-    if ($line2 =~ /(?'barcode'(?:.{6}))(?:$regex)/i){
+    if ($line2 =~ /(?'barcode'(?:.{$settings->{'barcodeLength'}}))(?:$regex)/i){
 		$$count++;
 		return ($line2,$+{barcode});
 	}elsif($line2 =~ /(?:$regexRevComp)(?'barcode'(?:.{6}))/i){
