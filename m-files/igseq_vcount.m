@@ -70,9 +70,9 @@ function X = igseq_vcount(db, type, varargin)
 
     % output as either cell array or structure
     if nargin > 2 && varargin{1} == 1
-        X = cell(2 + length(uv), 1 + (length(uj) * length(up)));
+        X = cell(2 + length(uv), 1 + length(up));
         X(3:end, 1) = uv;
-        X(2, 2:end) = repmat(uj', 1, length(up));
+        %X(2, 2:end) = repmat(uj', 1, length(up));
         X(1, 2:end) = reshape(repmat(up, 1, length(uj))', length(up) * length(uj), 1)';
         for i = 1:length(up)
             k1 = ((i - 1) * length(uj)) + 1;
@@ -84,7 +84,7 @@ function X = igseq_vcount(db, type, varargin)
         X.count = c;
         X.population = up;
         X.vgene = uv;
-        X.jgene = uj;82
+        %X.jgene = uj;
     end
 
     return
