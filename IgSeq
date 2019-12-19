@@ -290,3 +290,62 @@ open STDOUT, "| tee -a ".File::Spec->catfile($path,"lineageOutput",$LOG_FILE) or
 
     print "> All files archived to IgSeq_archive_$datetime.tgz\n";
 
+=pod
+
+=head1 AUTHOR
+
+	Christopher Fucile E<lt>cfucile@uab.eduE<gt>
+	Alex Rosenberg E<lt>afr@uab.eduE<gt>
+
+=head1 RESOURCES
+
+	If you are using this program in a publication, please cite it as
+
+	Tipton CM, Fucile CF, Darce J, Chida A, Ichikawa T, Gregoretti I, 
+	Schieferl S, Hom J, Jenks S, Feldman RJ, Mehr R, Wei C, Lee FE, 
+	Cheung WC, Rosenberg AF, Sanz I. Diversity, cellular origin and 
+	autoreactivity of antibody-secreting cell population expansions 
+	in acute systemic lupus erythematosus. Nature Immunology. 2015 
+	Jul;16(7):755-65. doi: 10.1038/ni.3175. Epub 2015 May 25. PubMed 
+	PMID: 26006014; PubMed Central PMCID: PMC4512288.
+
+=head1 CONTRIBUTORS
+
+
+
+=head1 BUGS
+
+=head1 SUPPORT
+
+=head1 ACKNOWLEDGEMENTS
+
+=head1 SEE ALSO
+
+=head1 LICENSE
+
+Division of Allergy, Immunology and Rheumatology
+University of Rochester Medical Center
+Copyright (c) 2013, All Rights Reserved
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+=cut
