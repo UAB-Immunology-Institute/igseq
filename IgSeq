@@ -125,7 +125,7 @@ while (<$QFILTER>){
 	}
 }
 
-if ($qfilterSettings{'run'} eq 'y'){
+if ( ($qfilterSettings{'run'} eq 'y') && ((defined($args[0]) && grep {/postAlignFilter/} @args) || !defined($args[0])) ){
 
 print "\n##################################################\n";
 print   "             Post V-quest Quality filter\n";
