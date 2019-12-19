@@ -34,7 +34,7 @@ function dx = igseq_dx(db, x)
 
     % open database and get populations, lineages IDs and isotypes
     conn = igseq_db(db);
-    a = get(fetch(exec(conn, 'select population, lineageID, isotype from sequence')), 'data');
+    a = table2cell(get(fetch(exec(conn, 'select population, lineageID, isotype from sequence where vgene != "IGHV1-2"')), 'data'));
     close(conn);
 
     % get columns from query result
