@@ -239,6 +239,7 @@ open STDOUT, "| tee -a ".File::Spec->catfile($path,"lineageOutput",$LOG_FILE) or
 
 			my $cpus = cpu_count();
 			my $pm = new Parallel::ForkManager($cpus-1);
+			my $db_name_base = $db_name;
 			foreach my $group (keys %fileSuffix){
 				my @groupFiles;
 
@@ -249,7 +250,13 @@ open STDOUT, "| tee -a ".File::Spec->catfile($path,"lineageOutput",$LOG_FILE) or
 
 				next if $withIdenticals     && $linSet{'runWithIdenticals'} eq 'n';
 				next if $withOutIdenticals  && $linSet{'runWithoutIdenticals'} eq 'n';
-				next if $isotype            && $linSet{'runIsotypes'} eq 'n';
+				if ($isotype && $linSet{'runIsotypes'} eq 'n'){
+					next;
+				}elsif($isotype){
+					$db_name = "$isotype\_$db_name_base";
+				}else{
+					$db_name = $db_name_base;
+				}
 				next if $v_gene             && $linSet{'runV_genes'} eq 'n';
 
 				my $pid = $pm->start and next;
@@ -267,7 +274,7 @@ open STDOUT, "| tee -a ".File::Spec->catfile($path,"lineageOutput",$LOG_FILE) or
 				push( @lineageCommand, File::Spec->catfile($config,$setting));
 				push( @lineageCommand, "$path");
 				push( @lineageCommand, $outfile);
-				push( @lineageCommand, $db_name) if (!$isotype && !$v_gene) && $withIdenticals;
+				push( @lineageCommand, $db_name) if !$v_gene && $withIdenticals;
 
 				lineage(@lineageCommand);
 
