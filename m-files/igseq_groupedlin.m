@@ -21,7 +21,7 @@ function tf = igseq_groupedlin(db)
     % open database and get populations, lineages IDs and isotypes
     conn = igseq_db(db);
     q = 'SELECT population, lineageID, count(sequenceID), vgene, jgene FROM sequence GROUP BY lineageID, population ORDER BY lineageID';
-    a = get(fetch(exec(conn, q)), 'data');
+    a = table2cell(get(fetch(exec(conn, q)), 'data'));
     close(conn);
 
     % get columns

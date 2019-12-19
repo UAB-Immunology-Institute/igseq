@@ -44,7 +44,7 @@ function X = igseq_vjcount(db, type, varargin)
 
     % open a database connection, run query
     conn = igseq_db(db);
-    a = get(fetch(exec(conn, q)), 'data');
+    a = table2cell( get(fetch(exec(conn, q)), 'data') );
     close(conn);
 
     % tabulate concatenated v-gene, j-gene, population output
