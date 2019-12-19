@@ -81,7 +81,7 @@ my $filePairID;
 	foreach my $subdir (@subDirs){
 		my $popDir = File::Spec->catdir($inputDir,$subdir);
 		opendir $IND, $popDir or die "Can not open data directory $popDir : $!";
-		my @files = readdir $IND;
+		my @files = sort readdir $IND;
 		closedir $IND;
 
 		push(@{$input{$subdir}}, grep {/(^2\_)|(^4\_)|(^8\_)/i} @files);
