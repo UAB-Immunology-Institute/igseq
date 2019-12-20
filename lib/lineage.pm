@@ -679,7 +679,7 @@ sub output{
 			print $COMP_FASTA $seq."\n" if $fileoutput;
 			
 			my $iso = 'U';
-			if ($tmp_row[1] =~ /^(.+?)\_/){
+			if ($tmp_row[1] =~ /^(.{1,5})\_/){
 				$iso = $1;
 			}
 			$counts{$lineage}{'counts'}{$tmp_row[0]}++;
@@ -776,7 +776,7 @@ if($singletons){
 			push @{$pop_conn{'lin_by_pop'}{$tmp_row[0]}{"$s_id.1"}}, $singleton;
 			
 			my $iso = 'U';
-			if ($tmp_row[1] =~ /^(.+?)\_/){
+			if ($tmp_row[1] =~ /^(.{1,5})\_/){
 				$iso = $1;
 			}
 			
