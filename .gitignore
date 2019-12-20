@@ -1,0 +1,15 @@
+lib/t_data/Bulk/2_IMGT-gapped-nt-sequences_5000_subsample.txt
+lib/t_data/Bulk/4_IMGT-gapped-AA-sequences_5000_subsample.txt
+lib/t_data/Bulk/8_V-REGION-nt-mutation-statistics_5000_subsample.txt
+lib/t_data/DN/2_IMGT-gapped-nt-sequences_5000_subsample.txt
+lib/t_data/DN/4_IMGT-gapped-AA-sequences_5000_subsample.txt
+lib/t_data/DN/8_V-REGION-nt-mutation-statistics_5000_subsample.txt
+lib/t_data/N/2_IMGT-gapped-nt-sequences_5000_subsample.txt
+lib/t_data/N/4_IMGT-gapped-AA-sequences_5000_subsample.txt
+lib/t_data/N/8_V-REGION-nt-mutation-statistics_5000_subsample.txt
+lib/t_data/SwM/2_IMGT-gapped-nt-sequences_5000_subsample.txt
+lib/t_data/SwM/4_IMGT-gapped-AA-sequences_5000_subsample.txt
+lib/t_data/SwM/8_V-REGION-nt-mutation-statistics_5000_subsample.txt
+lib/t_data/UnSw/2_IMGT-gapped-nt-sequences_5000_subsample.txt
+lib/t_data/UnSw/4_IMGT-gapped-AA-sequences_5000_subsample.txt
+lib/t_data/UnSw/8_V-REGION-nt-mutation-statistics_5000_subsample.txt
