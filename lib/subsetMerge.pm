@@ -75,10 +75,11 @@ sub mergeSubset{
         next if /##subsets##|run:y/;
         return 0 if /run:n/;
         my ($group) = split '\s';
-        push @{$sample_sets{$group}}, "2_IMGT-gapped-nt-sequences_$group.txt";
-        push @{$sample_sets{$group}}, "4_IMGT-gapped-AA-sequences_$group.txt";
-        push @{$sample_sets{$group}}, "8_V-REGION-nt-mutation-statistics_$group.txt";
+        push @{$sample_sets{$group}}, "2_IMGT-gapped-nt-sequences.txt";
+        push @{$sample_sets{$group}}, "4_IMGT-gapped-AA-sequences.txt";
+        push @{$sample_sets{$group}}, "8_V-REGION-nt-mutation-statistics.txt";
     }
+
     remove_tree('$path/subsetMerged') if -e '$path/subsetMerged';
     my $pm = new Parallel::ForkManager(scalar(keys %sample_sets));
     foreach my $sample (keys %sample_sets){
@@ -86,7 +87,7 @@ sub mergeSubset{
         
         print "Starting $sample\n";
         make_path("$path/subsetMerged/$sample") if (! -e "$path/subsetMerged/$sample");
-        my @v_quest_sets = grep {/$sample/} keys %{$vquest_files};
+        my @v_quest_sets = grep {/$sample(\_f\d+$|$)/i} keys %{$vquest_files};
         for my $j (0..2){
             my $first = 1;
             my $count =0;
