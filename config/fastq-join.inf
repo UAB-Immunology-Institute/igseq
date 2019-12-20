@@ -1,5 +1,5 @@
 trim:off
-p:8:percent maximum difference
-m:6:minimum overlap
+p:20:percent maximum difference
+m:10:minimum overlap
 r:join_report.txt:verbose output
 v:' ':id match(C or "space" for Illumina)

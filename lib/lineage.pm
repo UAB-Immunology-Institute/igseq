@@ -142,6 +142,7 @@ sub lineage {
 	}
 
 	foreach my $file (@paths){
+		#print Dumper $file;
 		if (-f $file){
 			open my $INF, "<". $file or die "Error opening $file $!\nSample may not contain this isotype\n";
 			my ($pop) = $file =~ /$inDir\/(.*?)\//;
@@ -163,6 +164,7 @@ sub lineage {
 # settings file for user options
     my %settings;
     my $settingsfile = $_[1];
+
     open my $fh, "<". $settingsfile or croak "ERROR: can't open lineage.inf\nMake sure file is in same directory as lineage454.pl\n";
     while (<$fh>){
         chop;
@@ -170,6 +172,7 @@ sub lineage {
         my @row = split ':', $non_comment;
         $settings{$row[0]} = $row[1];
     }
+
     croak "ERROR: Problem with settings file (lineage.inf). Check usage.\n" if scalar keys %settings !=13;
     close $fh;
 
@@ -702,7 +705,9 @@ sub output{
 					$insert[$_] = "$data[$mapping[$_]]";
 				}
 			}
+
 			#print $DB_file "$sql (\"". join('","',@insert) ."\");\n" if $db_name;
+			
 			$sth->execute(@insert) if $db_name;
 			$inserts++ if $db_name;
 			#if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
@@ -815,17 +820,17 @@ if($singletons){
 	
 	open my $COMP_seq_matches, ">". "$path/lineageOutput/$outfile/SEQUENCE_MATCHES.txt" or die "Error opening sequence_matches file $!\n";
 	
-
+#print Dumper $settings;
 	my ($cutoff_type, $cutoff_value) = split '\|', $settings->{"circos_cutoffs"};
 
-
+#print Dumper ($cutoff_type, \%{$pop_conn{'lin_by_pop'}}, \%{$pop_conn{'pop_count'}}, $cutoff_value);
 	my $cutoffs = expanded_clones::expanded($cutoff_type, \%{$pop_conn{'lin_by_pop'}}, \%{$pop_conn{'pop_count'}}, $cutoff_value);
 	make_path("$path/lineageOutput/$outfile/circos/");
 	
 	
 	my $lin_cutoffs;
 	#$lin_cutoffs = expanded_clones::expanded('d', \%{$pop_conn{'lin_by_pop'}}, \%{$pop_conn{'pop_count'}}, 60);
-	
+	#print Dumper ("$path","$path/lineageOutput/$outfile/circos/", $pop_conn{'pop_count'}, $cutoffs, $lin_cutoffs, \%uniq_iso);
 	circos_config::print_config("$path","$path/lineageOutput/$outfile/circos/", $pop_conn{'pop_count'}, $cutoffs, $lin_cutoffs, \%uniq_iso);
 	
 	open my $CIRCOS, ">". "$path/lineageOutput/$outfile/circos/circos_lineage_populations.txt" or die "Error opening circos_lineage_populations file $!\n";

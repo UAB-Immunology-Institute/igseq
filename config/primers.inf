@@ -1,5 +1,5 @@
 cutoff:2 # number of mismatches
-barcodeLength:6
+barcodeLength:0
 # Forward
 # Forward
 # Reverse

@@ -1,7 +1,7 @@
 run:y
 
 #numSeq = 0 for all sequences
-numSeq:50000
+numSeq:0
 
 #labels on outside of ring
 label_size:72
