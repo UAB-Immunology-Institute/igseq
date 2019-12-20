@@ -14,6 +14,8 @@ totalIso = {};
   for j = 1:length(list)
      db = [list(j).folder '/' list(j).name];
      pop = igseq_upop(db);
+     iso = repmat({''}, length(pop), 1);
+     col = mat2cell(parula(length(pop)), ones(1, length(pop)),3);
      tempOut = {};
      tempOut(:,2) = pop;
      tempOut(:,1) = {list(j).name};
@@ -48,10 +50,6 @@ totalIso = {};
      tempOut(:,6:(6 + (s(2)-4))) = t(:,4:s(2));
      
      %calculate Hill Diversity
-     iso = cell(length(pop),1);
-     iso(:,1) = {''};
-     col = cell(length(pop),1);
-     col(:,1) = {'k'};
      tmp = igseq_hillplot(db,0:1:2,0,pop,iso,col);
      r = num2cell(tmp);
      t = r';

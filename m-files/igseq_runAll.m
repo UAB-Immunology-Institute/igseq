@@ -7,9 +7,9 @@ function iso = igseq_runAll( db )
      igseq_nUniqueSeq(db)
      iso = igseq_isotypes(db);
      igseq_vjplot(db,'sequence')
-     print('vjplot_sequence.eps','-depsc');
+     %print('vjplot_sequence.eps','-depsc');
      igseq_vjplot(db,'lineage')
-     print('vjplot_lineage.eps','-depsc');
+     %print('vjplot_lineage.eps','-depsc');
      igseq_dx(db,20)
      igseq_dx(db,50)
      for i = 1:size(pop)
