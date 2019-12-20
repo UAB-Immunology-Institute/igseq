@@ -138,7 +138,7 @@ sub lineage {
 
 	my @paths;
 	foreach my $pop (@pops){
-		find( sub{push @paths,$File::Find::name if /$pop\_$input_file/}, $inDir);
+		find( sub{push @paths,$File::Find::name if /^$pop\_$input_file$/;}, $inDir);
 	}
 
 	foreach my $file (@paths){
