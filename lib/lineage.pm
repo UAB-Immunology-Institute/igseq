@@ -626,7 +626,8 @@ sub output{
 		$dbh->do(qq{PRAGMA synchronous=OFF;});
 		$dbh->do(qq{PRAGMA temp_store=MEMORY;});
 		$dbh->do(qq{PRAGMA cache_size=-12000;});
-		$dbh->do(qq{PRAGMA journal_mode=TRUNCATE;});
+		$dbh->do(qq{PRAGMA journal_mode=DELETE;});
+		$dbh->do(qq{PRAGMA page_size=4096;});
 		db::createSequenceTable($dbh);
 	}
 
@@ -710,7 +711,7 @@ sub output{
 			
 			$sth->execute(@insert) if $db_name;
 			$inserts++ if $db_name;
-			#if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
+			if ($db_name && ($inserts % 50000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
 		}
 		close $COMP_INFO if $fileoutput;
 		
@@ -798,7 +799,7 @@ if($singletons){
 			$sth->execute(@insert) if $db_name;
 			#print $DB_file "$sql (\"". join('","',@insert) ."\");\n" if $db_name;
 			$inserts++ if $db_name;
-			#if ($db_name && ($inserts % 10000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
+			if ($db_name && ($inserts % 50000 == 0)){ $dbh->do('commit'); $dbh->do('begin');}
 
 			$pop_conn{'pop_count'}{$tmp_row[0]}++;
 			$pop_conn{'lineages'}{$tmp_row[0]."singletons"}++;
