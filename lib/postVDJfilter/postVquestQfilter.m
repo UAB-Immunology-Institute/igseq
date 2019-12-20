@@ -72,16 +72,10 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
 		tmp = regexp(vquest{k,2},'^(\w+\_)','tokens');
 		a(k,1) = tmp{1};
 		
-        seq = '';
-        if length(vquest{k,7}) == 0
-           seq = vquest{k,8};
-        else
-            seq = vquest{k,7};
-        end
-        
-        b{k,1} =  regexprep(seq,'\.','');
+        b{k,1} =  regexprep(vquest{k,7},'\.','');
         vquest{k,2} = regexprep(vquest{k,2},'^\w+\_','');
         vquest{k,2} = regexprep(vquest{k,2},'000000000-','');
+        vquest{k,2} = regexprep(vquest{k,2},'\_\|$','');
     end
     
     vquest = [vquest a b];
@@ -147,9 +141,6 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
     
     for j = 1:nv %change to nv
         a = vquestProductive{ib(j),7};
-        if length(a) == 0
-            a = vquestProductive{ib(j),8};
-        end
         b = QualityNoGap{j};
         
         n = length(a);
@@ -166,12 +157,10 @@ function [fastq, vquest, QualityScoreAlign] = postVquestQfilter(fastqFile, vques
     
     QualityScoreAlign = cell2mat(x);
     QualityScoreAlign(QualityScoreAlign == -1) = NaN;
-    
-    
     baseviz_r2(QualityScoreAlign);
-     print(strcat(name,'qualityScoreDistribution_not_filtered.eps'),'-depsc');
+    print(strcat(name,'qualityScoreDistribution_raw.eps'),'-depsc', '-noui');
     baseqc_r2(QualityScoreAlign);
-     print(strcat(name,'qualityHistogram_not_filtered.eps'),'-depsc');
+    print(strcat(name,'qualityHistogram_raw.eps'),'-depsc', '-noui');
     
     ikeep = qFilter( QualityScoreAlign, name, start1,stop1,q1,start2,size(QualityScoreAlign,2),q2);
     n = length(ikeep);
