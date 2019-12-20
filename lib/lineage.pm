@@ -622,7 +622,7 @@ sub output{
 
 	if ($db_name){
 		$dbh = DBI->connect("DBI:SQLite:dbname=$path/db/$db_name.db", "", "", {RaiseError =>1, AutoCommit => 0}) or die $DBI::errstr;
-		print "DB connected, generating output...\n";
+		print POSIX::strftime("%H:%M:%S", localtime).">DB connected $db_name, generating output...\n";
 		$dbh->do(qq{PRAGMA synchronous=OFF;});
 		$dbh->do(qq{PRAGMA temp_store=MEMORY;});
 		$dbh->do(qq{PRAGMA cache_size=-12000;});
@@ -841,6 +841,7 @@ if($singletons){
 		$chr++;
 	}
 	close $CIRCOS;
+	print POSIX::strftime("%H:%M:%S", localtime).">Creating indices...\n";
 	db::createIndicies($dbh) if $db_name;
 	$dbh->commit if $db_name;
 
