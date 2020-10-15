@@ -8,7 +8,7 @@ function u = igseq_upop(db)
 %
 %    Requires Matlab Database Toolbox
 %
-%    See also IGSEQ_NSEQ, IGSEQ_NLIN, IGSEQ_ISOTYPES
+%    See also IGSEQ_NSEQ, IGSEQ_NLIN, IGSEQ_ISOTYPES, IGSEQ_SUMMARY
 
 % Chris Fucile
 % Alex Rosenberg

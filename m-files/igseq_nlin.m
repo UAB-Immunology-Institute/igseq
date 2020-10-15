@@ -10,7 +10,7 @@ function a = igseq_nlin(db)
 %
 %    Requires Matlab Database Toolbox
 %
-%    See also IGSEQ_NSEQ, IGSEQ_ISOTYPES
+%    See also IGSEQ_NSEQ, IGSEQ_ISOTYPES, IGSEQ_SUMMARY
 
 % Chris Fucile
 % Alex Rosenberg
