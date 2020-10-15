@@ -198,12 +198,12 @@ sub merge{
 		chomp;
 		my @row = split "\t", $_;
 		my ($seq_nospace) = $row[6] =~ s/\.//gr;
-		if ((($row[2] !~ /(No results|unproductive|unknown)/)                      ||
-            ($row[2] =~ /No results/   && $settings{include_NoResults}    eq 'y')  ||
-            ($row[2] =~ /unproductive/ && $settings{include_Unproductive} eq 'y')  ||
-            ($row[2] =~ /unknown/      && $settings{include_Unknown}      eq 'y') )&&
-            ($row[4] =~ /[IGK|IGL|IGH|TRB]J/)												     &&
-            (length($seq_nospace) >= $settings{'length_threshold'})					 ){
+		if ((($row[2] =~ /^productive$/)                      ||
+             ($row[2] =~ /No results/   && $settings{include_NoResults}    eq 'y')  ||
+             ($row[2] =~ /unproductive/ && $settings{include_Unproductive} eq 'y')  ||
+             ($row[2] =~ /unknown/      && $settings{include_Unknown}      eq 'y') )&&
+             ($row[4] =~ /[IGK|IGL|IGH|TRB]J/)												     &&
+             (length($seq_nospace) >= $settings{'length_threshold'})					 ){
             	$index++; # start at 1 since header is at 0
                                 
                 my $v = $row[3] =~ s/.*?\_?([IG|TRB].*?)(\*.*)/$1/r;
