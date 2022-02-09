@@ -29,7 +29,7 @@ use Data::Dumper;
 use Carp;
 use File::Path qw(make_path);
 use Parallel::ForkManager;
-use Sys::CPU qw(cpu_count);
+use Sys::CpuAffinity;
 use File::Spec;
 use File::Find;
 use FindBin;
@@ -40,6 +40,10 @@ use merge qw(merge);
 use lineage qw(lineage);
 
 use subsetMerge;
+
+
+my $cpu_count = Sys::CpuAffinity::getNumCpus();
+
 
 my $path = $FindBin::RealBin;
 my @args = @ARGV;
@@ -171,7 +175,7 @@ print   "##################################################\n";
 
 
 # for each pop directory run merge
-	my $pm = Parallel::ForkManager->new(cpu_count()-1);
+	my $pm = Parallel::ForkManager->new($cpu_count-1);
 	
 	if ((defined($args[0]) && grep {/merge/} @args) || !defined($args[0])) {
 		foreach my $pop (keys %input){
@@ -237,7 +241,7 @@ open STDOUT, "| tee -a ".File::Spec->catfile($path,"lineageOutput",$LOG_FILE) or
 				map {s/.*$pop\_//; $fileSuffix{$_} = 1;} @subfiles;
 			}		
 
-			my $cpus = cpu_count();
+			my $cpus = $cpu_count;
 			my $pm = new Parallel::ForkManager($cpus-1);
 			my $db_name_base = $db_name;
 			foreach my $group (keys %fileSuffix){

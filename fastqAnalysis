@@ -55,9 +55,11 @@ use Carp;
 use File::Path qw(make_path remove_tree);
 use File::Spec;
 use POSIX;
-use Sys::CPU qw(cpu_count);
+use Sys::CpuAffinity;
 use Parallel::ForkManager;
 use Tie::File;
+
+my $cpu_count = Sys::CpuAffinity::getNumCpus();
 
 my @args = @ARGV;
 
@@ -145,7 +147,7 @@ make_path(File::Spec->catdir($working_dir,'fastQCoutput','Filtered'));
 make_path(File::Spec->catdir($working_dir,'Archive'));
 
 # setup fork processes for up to # cores - 1
-my $pm = new Parallel::ForkManager(cpu_count()-1); 
+my $pm = new Parallel::ForkManager($cpu_count-1); 
 
 # start running scripts
 	print "##################################################\n";
